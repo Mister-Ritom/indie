@@ -1,0 +1,57 @@
+{
+  "expo": {
+    "name": "Indie",
+    "slug": "indie",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "me.ritom.indie",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#E60023"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "me.ritom.indie"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/android-icon-monochrome.png",
+        "backgroundColor": "#E60023"
+      },
+      "package": "me.ritom.indie"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Indie accesses your photos to let you create pins.",
+          "cameraPermission": "Indie accesses your camera to let you create pins."
+        }
+      ],
+      [
+        "expo-font",
+        {
+          "fonts": []
+        }
+      ],
+      "expo-status-bar",
+      "expo-web-browser",
+      "expo-splash-screen",
+      "expo-image"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

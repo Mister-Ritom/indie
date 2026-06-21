@@ -1,0 +1,516 @@
+import React, { useState, useEffect } from "react";
+import {
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  KeyboardAvoidingView,
+  Platform,
+  Image,
+  ActivityIndicator,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { router } from "expo-router";
+import * as Crypto from "expo-crypto";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { ImagePlus, X, ChevronDown } from "lucide-react-native";
+import { useTheme } from "@/hooks/useTheme";
+import { useBreakpoint } from "@/hooks/useBreakpoint";
+import { Input } from "@/components/ui/Input";
+import { Button } from "@/components/ui/Button";
+import { Modal } from "@/components/ui/Modal";
+import { supabase } from "@/lib/supabase/client";
+import { useAuthStore } from "@/stores/authStore";
+import { createPinSchema, type CreatePinForm } from "@/utils/validators";
+import {
+  requestMediaPermissions,
+  pickImageFromGallery,
+  takePhoto,
+  compressImage,
+  uploadToStorage,
+} from "@/utils/imageUpload";
+import type { Interest, Board } from "@/types/database";
+
+export default function CreatePinScreen() {
+  const { colors, spacing, typography, radius } = useTheme();
+  const { showSidebar } = useBreakpoint();
+  const { user } = useAuthStore();
+
+  const [imageUri, setImageUri] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [interests, setInterests] = useState<Interest[]>([]);
+  const [boards, setBoards] = useState<Board[]>([]);
+
+  const [showInterestPicker, setShowInterestPicker] = useState(false);
+  const [showBoardPicker, setShowBoardPicker] = useState(false);
+
+  const {
+    control,
+    handleSubmit,
+    setValue,
+    watch,
+    formState: { errors },
+  } = useForm<CreatePinForm>({
+    resolver: zodResolver(createPinSchema),
+    defaultValues: {
+      title: "",
+      description: "",
+      link: "",
+      alt_text: "",
+      interest_id: "",
+      board_id: "",
+    },
+  });
+
+  const selectedInterestId = watch("interest_id");
+  const selectedBoardId = watch("board_id");
+
+  useEffect(() => {
+    supabase
+      .from("interests")
+      .select("*")
+      .order("name")
+      .then(({ data }) => {
+        if (data) setInterests(data);
+      });
+    if (user) {
+      supabase
+        .from("boards")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("name")
+        .then(({ data }) => {
+          if (data) setBoards(data);
+        });
+    }
+  }, [user]);
+
+  const handlePickImage = async () => {
+    const hasPerm = await requestMediaPermissions();
+    if (!hasPerm) {
+      alert("Camera roll permissions are required.");
+      return;
+    }
+    const asset = await pickImageFromGallery();
+    if (asset) setImageUri(asset.uri);
+  };
+
+  const handleTakePhoto = async () => {
+    const hasPerm = await requestMediaPermissions();
+    if (!hasPerm) {
+      alert("Camera permissions are required.");
+      return;
+    }
+    const asset = await takePhoto();
+    if (asset) setImageUri(asset.uri);
+  };
+
+  const onSubmit = async (data: CreatePinForm) => {
+    if (!imageUri || !user) return;
+    setIsUploading(true);
+
+    try {
+      // 1. Client-side compression
+      const isGif = imageUri.toLowerCase().endsWith(".gif");
+      const { uri, width, height } = await compressImage(imageUri, isGif);
+
+      // 2. Generate a random UUID for the new pin
+      const pinId = Crypto.randomUUID();
+
+      // 3. Upload original to bucket FIRST (so the Edge Function can access it immediately)
+      const path = `${user.id}/${pinId}`;
+      await uploadToStorage(
+        "pin-originals",
+        path,
+        uri,
+        isGif ? "image/gif" : "image/jpeg",
+      );
+
+      // 4. Insert pin metadata. This triggers the Edge Function Webhook,
+      // which safely assumes the image is already fully uploaded.
+      const { data: pinData, error: pinError } = await supabase
+        .from("pins")
+        .insert({
+          id: pinId,
+          user_id: user.id,
+          board_id: data.board_id || null,
+          interest_id: data.interest_id,
+          title: data.title,
+          description: data.description,
+          link: data.link,
+          alt_text: data.alt_text,
+          media_type: isGif ? "gif" : "image",
+          width: width > 0 ? width : null,
+          height: height > 0 ? height : null,
+        })
+        .select()
+        .single();
+
+      if (pinError) throw pinError;
+
+      router.push(`/pin/${pinData.id}`);
+    } catch (e: any) {
+      alert(e.message || "Failed to upload pin");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  return (
+    <SafeAreaView
+      style={{ flex: 1, backgroundColor: colors.background }}
+      edges={showSidebar ? ["top", "bottom"] : ["top"]}
+    >
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
+      >
+        <ScrollView contentContainerStyle={{ padding: spacing.xl }}>
+          <Text
+            style={{
+              fontFamily: typography.families.headingBold,
+              fontSize: typography.scale.h2,
+              color: colors.text,
+              marginBottom: spacing.lg,
+            }}
+          >
+            Create Pin
+          </Text>
+
+          <View
+            style={{
+              flexDirection:
+                Platform.OS === "web" && showSidebar ? "row" : "column",
+              gap: spacing.xl,
+            }}
+          >
+            {/* Image Picker */}
+            <View style={{ flex: 1, minHeight: 400 }}>
+              {imageUri ? (
+                <View
+                  style={{
+                    flex: 1,
+                    position: "relative",
+                    borderRadius: radius.lg,
+                    overflow: "hidden",
+                    backgroundColor: colors.surface,
+                  }}
+                >
+                  <Image
+                    source={{ uri: imageUri }}
+                    style={{ flex: 1, width: "100%", height: "100%" }}
+                    resizeMode="contain"
+                  />
+                  <TouchableOpacity
+                    onPress={() => setImageUri(null)}
+                    style={{
+                      position: "absolute",
+                      top: spacing.md,
+                      right: spacing.md,
+                      backgroundColor: colors.overlay,
+                      padding: 8,
+                      borderRadius: radius.pill,
+                    }}
+                  >
+                    <X size={20} color="#fff" />
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <View
+                  style={{
+                    flex: 1,
+                    borderRadius: radius.lg,
+                    borderWidth: 2,
+                    borderColor: colors.border,
+                    borderStyle: "dashed",
+                    backgroundColor: colors.surface,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    padding: spacing.xl,
+                    gap: spacing.md,
+                  }}
+                >
+                  <ImagePlus size={48} color={colors.iconMuted} />
+                  <Text
+                    style={{
+                      fontFamily: typography.families.bodyMedium,
+                      fontSize: typography.scale.bodyLarge,
+                      color: colors.textSecondary,
+                    }}
+                  >
+                    Choose a file
+                  </Text>
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      gap: spacing.md,
+                      marginTop: spacing.md,
+                    }}
+                  >
+                    <Button
+                      label="Gallery"
+                      variant="secondary"
+                      onPress={handlePickImage}
+                    />
+                    <Button
+                      label="Camera"
+                      variant="secondary"
+                      onPress={handleTakePhoto}
+                    />
+                  </View>
+                </View>
+              )}
+            </View>
+
+            {/* Form */}
+            <View style={{ flex: 1, gap: spacing.md }}>
+              <Controller
+                control={control}
+                name="title"
+                render={({ field: { onChange, onBlur, value } }) => (
+                  <Input
+                    label="Title"
+                    placeholder="Add a title"
+                    value={value}
+                    onChangeText={onChange}
+                    onBlur={onBlur}
+                    error={errors.title?.message}
+                  />
+                )}
+              />
+
+              <Controller
+                control={control}
+                name="description"
+                render={({ field: { onChange, onBlur, value } }) => (
+                  <Input
+                    label="Description"
+                    placeholder="Add a detailed description"
+                    value={value}
+                    onChangeText={onChange}
+                    onBlur={onBlur}
+                    error={errors.description?.message}
+                    multiline
+                    numberOfLines={3}
+                    style={{ height: 80, textAlignVertical: "top" }}
+                  />
+                )}
+              />
+
+              <Controller
+                control={control}
+                name="link"
+                render={({ field: { onChange, onBlur, value } }) => (
+                  <Input
+                    label="Destination link"
+                    placeholder="https://"
+                    value={value}
+                    onChangeText={onChange}
+                    onBlur={onBlur}
+                    error={errors.link?.message}
+                    keyboardType="url"
+                    autoCapitalize="none"
+                  />
+                )}
+              />
+
+              {/* Interest Picker Trigger */}
+              <View>
+                <Text
+                  style={{
+                    fontFamily: typography.families.bodyMedium,
+                    fontSize: typography.scale.bodySmall,
+                    color: colors.text,
+                    marginBottom: 6,
+                  }}
+                >
+                  Category (Required)
+                </Text>
+                <TouchableOpacity
+                  onPress={() => setShowInterestPicker(true)}
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: 14,
+                    backgroundColor: colors.inputBg,
+                    borderRadius: radius.lg,
+                    borderWidth: 1.5,
+                    borderColor: errors.interest_id
+                      ? colors.error
+                      : colors.inputBorder,
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontFamily: typography.families.body,
+                      fontSize: typography.scale.body,
+                      color: selectedInterestId
+                        ? colors.text
+                        : colors.textTertiary,
+                    }}
+                  >
+                    {selectedInterestId
+                      ? interests.find((i) => i.id === selectedInterestId)?.name
+                      : "Select a category"}
+                  </Text>
+                  <ChevronDown size={20} color={colors.iconMuted} />
+                </TouchableOpacity>
+                {errors.interest_id && (
+                  <Text
+                    style={{
+                      fontFamily: typography.families.body,
+                      fontSize: typography.scale.caption,
+                      color: colors.error,
+                      marginTop: 4,
+                    }}
+                  >
+                    {errors.interest_id.message}
+                  </Text>
+                )}
+              </View>
+
+              {/* Board Picker Trigger */}
+              <View>
+                <Text
+                  style={{
+                    fontFamily: typography.families.bodyMedium,
+                    fontSize: typography.scale.bodySmall,
+                    color: colors.text,
+                    marginBottom: 6,
+                  }}
+                >
+                  Board (Optional)
+                </Text>
+                <TouchableOpacity
+                  onPress={() => setShowBoardPicker(true)}
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: 14,
+                    backgroundColor: colors.inputBg,
+                    borderRadius: radius.lg,
+                    borderWidth: 1.5,
+                    borderColor: colors.inputBorder,
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontFamily: typography.families.body,
+                      fontSize: typography.scale.body,
+                      color: selectedBoardId
+                        ? colors.text
+                        : colors.textTertiary,
+                    }}
+                  >
+                    {selectedBoardId
+                      ? boards.find((b) => b.id === selectedBoardId)?.name
+                      : "Choose a board"}
+                  </Text>
+                  <ChevronDown size={20} color={colors.iconMuted} />
+                </TouchableOpacity>
+              </View>
+
+              <Button
+                label="Publish"
+                onPress={handleSubmit(onSubmit)}
+                disabled={!imageUri || isUploading}
+                isLoading={isUploading}
+                fullWidth
+                size="lg"
+                style={{ marginTop: spacing.lg }}
+              />
+            </View>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+
+      {/* Interest Picker Modal */}
+      <Modal
+        visible={showInterestPicker}
+        onClose={() => setShowInterestPicker(false)}
+        title="Select Category"
+      >
+        {interests.map((interest) => (
+          <TouchableOpacity
+            key={interest.id}
+            onPress={() => {
+              setValue("interest_id", interest.id, { shouldValidate: true });
+              setShowInterestPicker(false);
+            }}
+            style={{
+              paddingVertical: spacing.md,
+              borderBottomWidth: 1,
+              borderBottomColor: colors.border,
+            }}
+          >
+            <Text
+              style={{
+                fontFamily: typography.families.bodyMedium,
+                fontSize: typography.scale.body,
+                color: colors.text,
+              }}
+            >
+              {interest.name}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </Modal>
+
+      {/* Board Picker Modal */}
+      <Modal
+        visible={showBoardPicker}
+        onClose={() => setShowBoardPicker(false)}
+        title="Select Board"
+      >
+        <TouchableOpacity
+          onPress={() => {
+            setValue("board_id", "");
+            setShowBoardPicker(false);
+          }}
+          style={{
+            paddingVertical: spacing.md,
+            borderBottomWidth: 1,
+            borderBottomColor: colors.border,
+          }}
+        >
+          <Text
+            style={{
+              fontFamily: typography.families.bodyMedium,
+              fontSize: typography.scale.body,
+              color: colors.text,
+            }}
+          >
+            No board (Profile only)
+          </Text>
+        </TouchableOpacity>
+        {boards.map((board) => (
+          <TouchableOpacity
+            key={board.id}
+            onPress={() => {
+              setValue("board_id", board.id);
+              setShowBoardPicker(false);
+            }}
+            style={{
+              paddingVertical: spacing.md,
+              borderBottomWidth: 1,
+              borderBottomColor: colors.border,
+            }}
+          >
+            <Text
+              style={{
+                fontFamily: typography.families.bodyMedium,
+                fontSize: typography.scale.body,
+                color: colors.text,
+              }}
+            >
+              {board.name}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </Modal>
+    </SafeAreaView>
+  );
+}
