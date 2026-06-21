@@ -29,9 +29,6 @@ const isExpoGo =
 
 const { width: SW, height: SH } = Dimensions.get("window");
 
-const CANVAS_W = SW;
-const CANVAS_H = Math.round(SW * (4 / 3));
-
 let SkiaEditorCanvasComponent:
   | typeof import("@/components/ui/editor/SkiaEditorCanvas").SkiaEditorCanvas
   | null = null;
@@ -178,32 +175,32 @@ const tcb = StyleSheet.create({
   colorDot: { flex: 1 },
 });
 
-function DraggableText({ layer, isActive, isExporting, onUpdatePosition, onSelect, onDelete }: any) {
+function DraggableText({ layer, isActive, isExporting, globalScale, globalRotation, globalPinchRef, globalRotateRef, onUpdatePosition, onSelect, onDelete }: any) {
   const transX = useSharedValue(layer.x);
   const transY = useSharedValue(layer.y);
-  const scale = useSharedValue(layer.scale || 1);
-  const savedScale = useSharedValue(layer.scale || 1);
-  const rotation = useSharedValue(layer.rotation || 0);
-  const savedRotation = useSharedValue(layer.rotation || 0);
 
-  const pan = Gesture.Pan()
+  useEffect(() => {
+    if (isActive) {
+      globalScale.value = layer.scale || 1;
+      globalRotation.value = layer.rotation || 0;
+    }
+  }, [isActive]);
+
+  const pan = useMemo(() => Gesture.Pan()
+    .simultaneousWithExternalGesture(globalPinchRef, globalRotateRef)
     .onStart(() => { runOnJS(onSelect)(layer.id); })
     .onChange((e) => { transX.value += e.changeX; transY.value += e.changeY; })
-    .onEnd(() => { runOnJS(onUpdatePosition)(layer.id, transX.value, transY.value, scale.value, rotation.value); });
+    .onEnd(() => { runOnJS(onUpdatePosition)(layer.id, transX.value, transY.value); }),
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  [globalPinchRef, globalRotateRef]);
 
-  const pinch = Gesture.Pinch()
-    .onStart(() => { runOnJS(onSelect)(layer.id); })
-    .onChange((e) => { scale.value = Math.max(0.3, Math.min(4, savedScale.value * e.scale)); })
-    .onEnd(() => { savedScale.value = scale.value; runOnJS(onUpdatePosition)(layer.id, transX.value, transY.value, scale.value, rotation.value); });
+  const tap = useMemo(() => Gesture.Tap()
+    .simultaneousWithExternalGesture(globalPinchRef, globalRotateRef)
+    .onEnd(() => { runOnJS(onSelect)(layer.id); }),
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  [globalPinchRef, globalRotateRef]);
 
-  const rotate = Gesture.Rotation()
-    .onStart(() => { runOnJS(onSelect)(layer.id); })
-    .onChange((e) => { rotation.value = savedRotation.value + e.rotation; })
-    .onEnd(() => { savedRotation.value = rotation.value; runOnJS(onUpdatePosition)(layer.id, transX.value, transY.value, scale.value, rotation.value); });
-
-  const tap = Gesture.Tap().onEnd(() => { runOnJS(onSelect)(layer.id); });
-
-  const composed = Gesture.Simultaneous(pan, pinch, rotate, tap);
+  const composed = useMemo(() => Gesture.Simultaneous(pan, tap), [pan, tap]);
 
   const animatedStyle = useAnimatedStyle(() => {
     const estimatedWidth = layer.text.length * layer.fontSize * 0.6;
@@ -213,13 +210,16 @@ function DraggableText({ layer, isActive, isExporting, onUpdatePosition, onSelec
     if (layer.align === "center") textX = transX.value - estimatedWidth / 2;
     if (layer.align === "right") textX = transX.value - estimatedWidth;
 
+    const currentScale = isActive ? globalScale.value : (layer.scale || 1);
+    const currentRotation = isActive ? globalRotation.value : (layer.rotation || 0);
+
     return {
       position: "absolute",
       left: textX - 16,
       top: transY.value - estimatedHeight - 16,
       transform: [
-        { scale: scale.value },
-        { rotateZ: `${rotation.value}rad` }
+        { scale: currentScale },
+        { rotateZ: `${currentRotation}rad` }
       ],
       opacity: isExporting && Platform.OS === 'web' ? 0 : 1,
     };
@@ -254,43 +254,48 @@ function DraggableText({ layer, isActive, isExporting, onUpdatePosition, onSelec
   );
 }
 
-function DraggableSticker({ layer, isActive, isExporting, onUpdateLayer, onSelect, onDelete }: any) {
+function DraggableSticker({ layer, isActive, isExporting, globalScale, globalRotation, globalPinchRef, globalRotateRef, onUpdateLayer, onSelect, onDelete }: any) {
   const transX = useSharedValue(layer.x);
   const transY = useSharedValue(layer.y);
-  const scale = useSharedValue(layer.scale || 1);
-  const savedScale = useSharedValue(layer.scale || 1);
-  const rotation = useSharedValue(layer.rotation || 0);
-  const savedRotation = useSharedValue(layer.rotation || 0);
 
-  const pan = Gesture.Pan()
+  useEffect(() => {
+    if (isActive) {
+      globalScale.value = layer.scale || 1;
+      globalRotation.value = layer.rotation || 0;
+    }
+  }, [isActive]);
+
+  const pan = useMemo(() => Gesture.Pan()
+    .simultaneousWithExternalGesture(globalPinchRef, globalRotateRef)
     .onStart(() => { runOnJS(onSelect)(layer.id); })
     .onChange((e) => { transX.value += e.changeX; transY.value += e.changeY; })
-    .onEnd(() => { runOnJS(onUpdateLayer)(layer.id, transX.value, transY.value, scale.value, rotation.value); });
+    .onEnd(() => { runOnJS(onUpdateLayer)(layer.id, transX.value, transY.value); }),
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  [globalPinchRef, globalRotateRef]);
 
-  const pinch = Gesture.Pinch()
-    .onStart(() => { runOnJS(onSelect)(layer.id); })
-    .onChange((e) => { scale.value = Math.max(0.3, Math.min(4, savedScale.value * e.scale)); })
-    .onEnd(() => { savedScale.value = scale.value; runOnJS(onUpdateLayer)(layer.id, transX.value, transY.value, scale.value, rotation.value); });
+  const tap = useMemo(() => Gesture.Tap()
+    .simultaneousWithExternalGesture(globalPinchRef, globalRotateRef)
+    .onEnd(() => { runOnJS(onSelect)(layer.id); }),
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  [globalPinchRef, globalRotateRef]);
 
-  const rotate = Gesture.Rotation()
-    .onStart(() => { runOnJS(onSelect)(layer.id); })
-    .onChange((e) => { rotation.value = savedRotation.value + e.rotation; })
-    .onEnd(() => { savedRotation.value = rotation.value; runOnJS(onUpdateLayer)(layer.id, transX.value, transY.value, scale.value, rotation.value); });
+  const composed = useMemo(() => Gesture.Simultaneous(pan, tap), [pan, tap]);
 
-  const tap = Gesture.Tap().onEnd(() => { runOnJS(onSelect)(layer.id); });
+  const animatedStyle = useAnimatedStyle(() => {
+    const currentScale = isActive ? globalScale.value : (layer.scale || 1);
+    const currentRotation = isActive ? globalRotation.value : (layer.rotation || 0);
 
-  const composed = Gesture.Simultaneous(pan, pinch, rotate, tap);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    position: "absolute",
-    left: transX.value - 16,
-    top: transY.value - 40 - 16,
-    transform: [
-      { scale: scale.value },
-      { rotateZ: `${rotation.value}rad` }
-    ],
-    opacity: isExporting && Platform.OS === 'web' ? 0 : 1,
-  }));
+    return {
+      position: "absolute",
+      left: transX.value - 16,
+      top: transY.value - 40 - 16,
+      transform: [
+        { scale: currentScale },
+        { rotateZ: `${currentRotation}rad` }
+      ],
+      opacity: isExporting && Platform.OS === 'web' ? 0 : 1,
+    };
+  });
 
   return (
     <GestureDetector gesture={composed}>
@@ -333,6 +338,62 @@ export default function PhotoEditorScreen() {
   const [activeLayerId, setActiveLayerId] = useState<string | null>(null);
   const [currentUri, setCurrentUri] = useState(imageUri || "");
   const [isExporting, setIsExporting] = useState(false);
+
+  const { canvasWidth, canvasHeight } = useMemo(() => {
+    const maxWidth = SW;
+    const maxHeight = SH * 0.75;
+    if (!imageWidth || !imageHeight) return { canvasWidth: SW, canvasHeight: Math.round(SW * (4 / 3)) };
+    const aspect = imageWidth / imageHeight;
+    let w = maxWidth;
+    let h = w / aspect;
+    if (h > maxHeight) {
+      h = maxHeight;
+      w = h * aspect;
+    }
+    return { canvasWidth: w, canvasHeight: h };
+  }, [imageWidth, imageHeight]);
+
+  const globalScale = useSharedValue(1);
+  const savedGlobalScale = useSharedValue(1);
+  const globalRotation = useSharedValue(0);
+  const savedGlobalRotation = useSharedValue(0);
+
+  const saveActiveTransform = useCallback(() => {
+    if (!activeLayerId) return;
+    setTextLayers(prev => prev.map(l => l.id === activeLayerId ? { ...l, scale: globalScale.value, rotation: globalRotation.value } : l));
+    setStickerLayers(prev => prev.map(l => l.id === activeLayerId ? { ...l, scale: globalScale.value, rotation: globalRotation.value } : l));
+  }, [activeLayerId]);
+
+  // Store as stable refs so the gesture object identity never changes across renders.
+  // This is required for simultaneousWithExternalGesture to work in child GestureDetectors.
+  const globalPinchRef = useRef(
+    Gesture.Pinch()
+      .onStart(() => { savedGlobalScale.value = globalScale.value; })
+      .onUpdate((e) => { globalScale.value = savedGlobalScale.value * e.scale; })
+      .onEnd(() => { runOnJS(saveActiveTransform)(); })
+  ).current;
+
+  const globalRotateRef = useRef(
+    Gesture.Rotation()
+      .onStart(() => { savedGlobalRotation.value = globalRotation.value; })
+      .onUpdate((e) => { globalRotation.value = savedGlobalRotation.value + e.rotation; })
+      .onEnd(() => { runOnJS(saveActiveTransform)(); })
+  ).current;
+
+  const canvasBackgroundTap = useMemo(() => Gesture.Tap()
+    .onEnd(() => { runOnJS(setActiveLayerId)(null); }), []);
+
+  const canvasGestures = useMemo(() => {
+    if (activeTool === "draw") return drawGesture;
+    return canvasBackgroundTap;
+  }, [activeTool, drawGesture, canvasBackgroundTap]);
+
+  // Global pinch + rotate live on the outermost wrapper so one finger
+  // can be anywhere on screen while the other is over the active layer.
+  const globalTransformGesture = useMemo(
+    () => Gesture.Simultaneous(globalPinchRef, globalRotateRef),
+    [globalPinchRef, globalRotateRef]
+  );
 
   useEffect(() => {
     if (imageUri && !currentUri) {
@@ -390,8 +451,8 @@ export default function PhotoEditorScreen() {
     const newLayer: TextLayer = {
       id: uid(),
       text: editingText.trim(),
-      x: CANVAS_W / 2,
-      y: CANVAS_H / 2,
+      x: canvasWidth / 2,
+      y: canvasHeight / 2,
       color: textColor,
       fontSize: 32,
       bold: textBold,
@@ -423,18 +484,18 @@ export default function PhotoEditorScreen() {
     }
   }, [activeTool, addTextLayer]);
 
-  const updateTextPosition = useCallback((id: string, x: number, y: number, scale: number, rotation: number) => {
-    setTextLayers((prev) => prev.map((l) => (l.id === id ? { ...l, x, y, scale, rotation } : l)));
+  const updateTextPosition = useCallback((id: string, x: number, y: number) => {
+    setTextLayers((prev) => prev.map((l) => (l.id === id ? { ...l, x, y } : l)));
   }, []);
 
   const addSticker = useCallback((emoji: string) => {
-    const newSticker: StickerLayer = { id: uid(), emoji, x: CANVAS_W / 2 - 30, y: CANVAS_H / 2 - 30, scale: 1, rotation: 0 };
+    const newSticker: StickerLayer = { id: uid(), emoji, x: canvasWidth / 2 - 30, y: canvasHeight / 2 - 30, scale: 1, rotation: 0 };
     setStickerLayers((prev) => [...prev, newSticker]);
     setActiveLayerId(newSticker.id);
-  }, []);
+  }, [canvasWidth, canvasHeight]);
 
-  const updateStickerLayer = useCallback((id: string, x: number, y: number, scale: number, rotation: number) => {
-    setStickerLayers((prev) => prev.map((sl) => (sl.id === id ? { ...sl, x, y, scale, rotation } : sl)));
+  const updateStickerLayer = useCallback((id: string, x: number, y: number) => {
+    setStickerLayers((prev) => prev.map((sl) => (sl.id === id ? { ...sl, x, y } : sl)));
   }, []);
 
   const deleteLayer = useCallback((id: string) => {
@@ -527,7 +588,10 @@ export default function PhotoEditorScreen() {
         {isExpoGo ? (
           renderExpoGoFallback()
         ) : (
-          <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
+          // The outermost GestureDetector captures pinch/rotate across the ENTIRE screen
+          // so one finger can be on the active layer while the other is anywhere.
+          <GestureDetector gesture={globalTransformGesture}>
+            <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
             <View style={styles.root}>
               {/* ── Top Bar ─────────────────────────────────────────── */}
               <View style={styles.topBar}>
@@ -549,15 +613,14 @@ export default function PhotoEditorScreen() {
 
               {/* ── Canvas Area ─────────────────────────────────────── */}
               <View style={styles.canvasContainer}>
-                <GestureDetector gesture={activeTool === "draw" ? drawGesture : Gesture.Pan().enabled(false)}>
-                  <Pressable style={{ flex: 1 }} onPress={() => setActiveLayerId(null)}>
-                    <View style={styles.canvasInner} ref={captureViewRef} collapsable={false}>
+                <GestureDetector gesture={canvasGestures}>
+                  <View style={[styles.canvasInner, { width: canvasWidth, height: canvasHeight }]} ref={captureViewRef} collapsable={false}>
                     {SkiaEditorCanvasComponent && currentUri ? (
                       <SkiaEditorCanvasComponent
                         ref={canvasRef}
                         imageUri={currentUri}
-                        canvasWidth={CANVAS_W}
-                        canvasHeight={CANVAS_H}
+                        canvasWidth={canvasWidth}
+                        canvasHeight={canvasHeight}
                         drawPaths={drawPaths}
                         textLayers={isExporting && Platform.OS === 'web' ? textLayers : []}
                         stickerLayers={isExporting && Platform.OS === 'web' ? stickerLayers : []}
@@ -570,6 +633,10 @@ export default function PhotoEditorScreen() {
                         layer={layer} 
                         isActive={activeLayerId === layer.id}
                         isExporting={isExporting} 
+                        globalScale={globalScale}
+                        globalRotation={globalRotation}
+                        globalPinchRef={globalPinchRef}
+                        globalRotateRef={globalRotateRef}
                         onUpdatePosition={updateTextPosition} 
                         onSelect={setActiveLayerId}
                         onDelete={deleteLayer}
@@ -582,13 +649,16 @@ export default function PhotoEditorScreen() {
                         layer={sticker} 
                         isActive={activeLayerId === sticker.id}
                         isExporting={isExporting} 
+                        globalScale={globalScale}
+                        globalRotation={globalRotation}
+                        globalPinchRef={globalPinchRef}
+                        globalRotateRef={globalRotateRef}
                         onUpdateLayer={updateStickerLayer} 
                         onSelect={setActiveLayerId}
                         onDelete={deleteLayer}
                       />
                     ))}
                   </View>
-                  </Pressable>
                 </GestureDetector>
               </View>
 
@@ -663,7 +733,8 @@ export default function PhotoEditorScreen() {
               />
               <StickerSheet visible={showStickerSheet} onSelect={addSticker} onClose={() => setShowStickerSheet(false)} />
             </View>
-          </KeyboardAvoidingView>
+            </KeyboardAvoidingView>
+          </GestureDetector>
         )}
       </GestureHandlerRootView>
 
@@ -700,7 +771,7 @@ const styles = StyleSheet.create({
   pillBtnText: { color: "#fff", fontSize: 15, fontWeight: "600" },
   doneBtn: { backgroundColor: PILL_DONE_BG, paddingHorizontal: 20 },
   canvasContainer: { flex: 1, alignItems: "center", justifyContent: "center", overflow: "hidden" },
-  canvasInner: { width: CANVAS_W, height: CANVAS_H, borderRadius: 20, overflow: "hidden", position: "relative" },
+  canvasInner: { borderRadius: 20, overflow: "hidden", position: "relative" },
   textOverlayText: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
   stickerEmoji: { fontSize: 52 },
   textInputContainer: { backgroundColor: "rgba(20,20,20,0.92)", paddingTop: 8 },
