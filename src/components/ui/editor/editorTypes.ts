@@ -29,6 +29,8 @@ export interface TextLayer {
   bold: boolean;
   align: TextAlign;
   bgStyle: TextBgStyle;
+  scale: number;
+  rotation: number;
 }
 
 export interface StickerLayer {

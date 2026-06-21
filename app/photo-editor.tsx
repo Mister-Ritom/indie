@@ -7,7 +7,7 @@
 import React, { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import {
   View, Text, Platform, StyleSheet, TouchableOpacity, TextInput,
-  ScrollView, Dimensions, StatusBar, KeyboardAvoidingView
+  ScrollView, Dimensions, StatusBar, KeyboardAvoidingView, Pressable
 } from "react-native";
 import { router } from "expo-router";
 import Animated, { useSharedValue, useAnimatedStyle, runOnJS } from "react-native-reanimated";
@@ -178,18 +178,32 @@ const tcb = StyleSheet.create({
   colorDot: { flex: 1 },
 });
 
-function DraggableText({ layer, isExporting, onUpdatePosition }: any) {
+function DraggableText({ layer, isActive, isExporting, onUpdatePosition, onSelect, onDelete }: any) {
   const transX = useSharedValue(layer.x);
   const transY = useSharedValue(layer.y);
+  const scale = useSharedValue(layer.scale || 1);
+  const savedScale = useSharedValue(layer.scale || 1);
+  const rotation = useSharedValue(layer.rotation || 0);
+  const savedRotation = useSharedValue(layer.rotation || 0);
 
   const pan = Gesture.Pan()
-    .onChange((e) => {
-      transX.value += e.changeX;
-      transY.value += e.changeY;
-    })
-    .onEnd(() => {
-      runOnJS(onUpdatePosition)(layer.id, transX.value, transY.value);
-    });
+    .onStart(() => { runOnJS(onSelect)(layer.id); })
+    .onChange((e) => { transX.value += e.changeX; transY.value += e.changeY; })
+    .onEnd(() => { runOnJS(onUpdatePosition)(layer.id, transX.value, transY.value, scale.value, rotation.value); });
+
+  const pinch = Gesture.Pinch()
+    .onStart(() => { runOnJS(onSelect)(layer.id); })
+    .onChange((e) => { scale.value = Math.max(0.3, Math.min(4, savedScale.value * e.scale)); })
+    .onEnd(() => { savedScale.value = scale.value; runOnJS(onUpdatePosition)(layer.id, transX.value, transY.value, scale.value, rotation.value); });
+
+  const rotate = Gesture.Rotation()
+    .onStart(() => { runOnJS(onSelect)(layer.id); })
+    .onChange((e) => { rotation.value = savedRotation.value + e.rotation; })
+    .onEnd(() => { savedRotation.value = rotation.value; runOnJS(onUpdatePosition)(layer.id, transX.value, transY.value, scale.value, rotation.value); });
+
+  const tap = Gesture.Tap().onEnd(() => { runOnJS(onSelect)(layer.id); });
+
+  const composed = Gesture.Simultaneous(pan, pinch, rotate, tap);
 
   const animatedStyle = useAnimatedStyle(() => {
     const estimatedWidth = layer.text.length * layer.fontSize * 0.6;
@@ -201,60 +215,94 @@ function DraggableText({ layer, isExporting, onUpdatePosition }: any) {
 
     return {
       position: "absolute",
-      left: textX,
-      top: transY.value - estimatedHeight,
-      opacity: isExporting && Platform.OS === 'web' ? 0 : 1, // hide on web during export so Skia renders it
+      left: textX - 16,
+      top: transY.value - estimatedHeight - 16,
+      transform: [
+        { scale: scale.value },
+        { rotateZ: `${rotation.value}rad` }
+      ],
+      opacity: isExporting && Platform.OS === 'web' ? 0 : 1,
     };
   });
 
   return (
-    <GestureDetector gesture={pan}>
+    <GestureDetector gesture={composed}>
       <Animated.View style={animatedStyle}>
-        <Text
-          style={[
-            styles.textOverlayText,
-            {
-              color: layer.color,
-              fontSize: layer.fontSize,
-              fontWeight: layer.bold ? "700" : "400",
-              textAlign: layer.align,
-              backgroundColor: layer.bgStyle === "solid" ? "rgba(0,0,0,0.5)" : "transparent",
-            },
-          ]}
-        >
-          {layer.text}
-        </Text>
+        <View style={{ padding: 16, borderWidth: isActive ? 1.5 : 0, borderColor: "rgba(255,255,255,0.8)", borderStyle: "dashed", borderRadius: 8 }}>
+          <Text
+            style={[
+              styles.textOverlayText,
+              {
+                color: layer.color,
+                fontSize: layer.fontSize,
+                fontWeight: layer.bold ? "700" : "400",
+                textAlign: layer.align,
+                backgroundColor: layer.bgStyle === "solid" ? "rgba(0,0,0,0.5)" : "transparent",
+              },
+            ]}
+          >
+            {layer.text}
+          </Text>
+        </View>
+        {isActive && (
+          <TouchableOpacity onPress={() => onDelete(layer.id)} style={{ position: 'absolute', top: 0, left: 0, backgroundColor: '#E60023', borderRadius: 14, width: 28, height: 28, alignItems: 'center', justifyContent: 'center', zIndex: 10 }}>
+            <Text style={{color: 'white', fontWeight: 'bold', fontSize: 14}}>✕</Text>
+          </TouchableOpacity>
+        )}
       </Animated.View>
     </GestureDetector>
   );
 }
 
-function DraggableSticker({ layer, isExporting, onUpdateLayer }: any) {
+function DraggableSticker({ layer, isActive, isExporting, onUpdateLayer, onSelect, onDelete }: any) {
   const transX = useSharedValue(layer.x);
   const transY = useSharedValue(layer.y);
-  const scale = useSharedValue(layer.scale);
-  const savedScale = useSharedValue(layer.scale);
+  const scale = useSharedValue(layer.scale || 1);
+  const savedScale = useSharedValue(layer.scale || 1);
+  const rotation = useSharedValue(layer.rotation || 0);
+  const savedRotation = useSharedValue(layer.rotation || 0);
 
   const pan = Gesture.Pan()
+    .onStart(() => { runOnJS(onSelect)(layer.id); })
     .onChange((e) => { transX.value += e.changeX; transY.value += e.changeY; })
-    .onEnd(() => { runOnJS(onUpdateLayer)(layer.id, transX.value, transY.value, scale.value); });
+    .onEnd(() => { runOnJS(onUpdateLayer)(layer.id, transX.value, transY.value, scale.value, rotation.value); });
 
   const pinch = Gesture.Pinch()
+    .onStart(() => { runOnJS(onSelect)(layer.id); })
     .onChange((e) => { scale.value = Math.max(0.3, Math.min(4, savedScale.value * e.scale)); })
-    .onEnd(() => { savedScale.value = scale.value; runOnJS(onUpdateLayer)(layer.id, transX.value, transY.value, scale.value); });
+    .onEnd(() => { savedScale.value = scale.value; runOnJS(onUpdateLayer)(layer.id, transX.value, transY.value, scale.value, rotation.value); });
+
+  const rotate = Gesture.Rotation()
+    .onStart(() => { runOnJS(onSelect)(layer.id); })
+    .onChange((e) => { rotation.value = savedRotation.value + e.rotation; })
+    .onEnd(() => { savedRotation.value = rotation.value; runOnJS(onUpdateLayer)(layer.id, transX.value, transY.value, scale.value, rotation.value); });
+
+  const tap = Gesture.Tap().onEnd(() => { runOnJS(onSelect)(layer.id); });
+
+  const composed = Gesture.Simultaneous(pan, pinch, rotate, tap);
 
   const animatedStyle = useAnimatedStyle(() => ({
     position: "absolute",
-    left: transX.value,
-    top: transY.value - 40,
-    transform: [{ scale: scale.value }],
-    opacity: isExporting && Platform.OS === 'web' ? 0 : 1, // hide on web during export so Skia renders it
+    left: transX.value - 16,
+    top: transY.value - 40 - 16,
+    transform: [
+      { scale: scale.value },
+      { rotateZ: `${rotation.value}rad` }
+    ],
+    opacity: isExporting && Platform.OS === 'web' ? 0 : 1,
   }));
 
   return (
-    <GestureDetector gesture={Gesture.Simultaneous(pan, pinch)}>
+    <GestureDetector gesture={composed}>
       <Animated.View style={animatedStyle}>
-        <Text style={styles.stickerEmoji}>{layer.emoji}</Text>
+        <View style={{ padding: 16, borderWidth: isActive ? 1.5 : 0, borderColor: "rgba(255,255,255,0.8)", borderStyle: "dashed", borderRadius: 8 }}>
+          <Text style={styles.stickerEmoji}>{layer.emoji}</Text>
+        </View>
+        {isActive && (
+          <TouchableOpacity onPress={() => onDelete(layer.id)} style={{ position: 'absolute', top: 0, left: 0, backgroundColor: '#E60023', borderRadius: 14, width: 28, height: 28, alignItems: 'center', justifyContent: 'center', zIndex: 10 }}>
+            <Text style={{color: 'white', fontWeight: 'bold', fontSize: 14}}>✕</Text>
+          </TouchableOpacity>
+        )}
       </Animated.View>
     </GestureDetector>
   );
@@ -282,6 +330,7 @@ export default function PhotoEditorScreen() {
   const [textBgStyle, setTextBgStyle] = useState<"none" | "solid">("none");
 
   const [stickerLayers, setStickerLayers] = useState<StickerLayer[]>([]);
+  const [activeLayerId, setActiveLayerId] = useState<string | null>(null);
   const [currentUri, setCurrentUri] = useState(imageUri || "");
   const [isExporting, setIsExporting] = useState(false);
 
@@ -348,8 +397,11 @@ export default function PhotoEditorScreen() {
       bold: textBold,
       align: textAlign,
       bgStyle: textBgStyle,
+      scale: 1,
+      rotation: 0,
     };
     setTextLayers((prev) => [...prev, newLayer]);
+    setActiveLayerId(newLayer.id);
     setEditingText("");
     setActiveTool("none");
   }, [editingText, textColor, textBold, textAlign, textBgStyle]);
@@ -371,18 +423,31 @@ export default function PhotoEditorScreen() {
     }
   }, [activeTool, addTextLayer]);
 
-  const updateTextPosition = useCallback((id: string, x: number, y: number) => {
-    setTextLayers((prev) => prev.map((l) => (l.id === id ? { ...l, x, y } : l)));
+  const updateTextPosition = useCallback((id: string, x: number, y: number, scale: number, rotation: number) => {
+    setTextLayers((prev) => prev.map((l) => (l.id === id ? { ...l, x, y, scale, rotation } : l)));
   }, []);
 
   const addSticker = useCallback((emoji: string) => {
     const newSticker: StickerLayer = { id: uid(), emoji, x: CANVAS_W / 2 - 30, y: CANVAS_H / 2 - 30, scale: 1, rotation: 0 };
     setStickerLayers((prev) => [...prev, newSticker]);
+    setActiveLayerId(newSticker.id);
   }, []);
 
-  const updateStickerLayer = useCallback((id: string, x: number, y: number, scale: number) => {
-    setStickerLayers((prev) => prev.map((sl) => (sl.id === id ? { ...sl, x, y, scale } : sl)));
+  const updateStickerLayer = useCallback((id: string, x: number, y: number, scale: number, rotation: number) => {
+    setStickerLayers((prev) => prev.map((sl) => (sl.id === id ? { ...sl, x, y, scale, rotation } : sl)));
   }, []);
+
+  const deleteLayer = useCallback((id: string) => {
+    setTextLayers((prev) => prev.filter((l) => l.id !== id));
+    setStickerLayers((prev) => prev.filter((l) => l.id !== id));
+    setActiveLayerId((prev) => (prev === id ? null : prev));
+  }, []);
+
+  const activeTextLayer = textLayers.find((l) => l.id === activeLayerId);
+  const updateActiveTextLayer = (updates: Partial<TextLayer>) => {
+    if (!activeLayerId) return;
+    setTextLayers((prev) => prev.map((l) => (l.id === activeLayerId ? { ...l, ...updates } : l)));
+  };
 
   const undoLastPath = useCallback(() => {
     setDrawPaths((prev) => prev.slice(0, -1));
@@ -426,6 +491,7 @@ export default function PhotoEditorScreen() {
   }, [currentUri, setEditedImage]);
 
   const handleToolPress = (tool: EditorTool) => {
+    setActiveLayerId(null);
     if (tool === "crop") {
       setShowCrop(true);
       return;
@@ -484,7 +550,8 @@ export default function PhotoEditorScreen() {
               {/* ── Canvas Area ─────────────────────────────────────── */}
               <View style={styles.canvasContainer}>
                 <GestureDetector gesture={activeTool === "draw" ? drawGesture : Gesture.Pan().enabled(false)}>
-                  <View style={styles.canvasInner} ref={captureViewRef} collapsable={false}>
+                  <Pressable style={{ flex: 1 }} onPress={() => setActiveLayerId(null)}>
+                    <View style={styles.canvasInner} ref={captureViewRef} collapsable={false}>
                     {SkiaEditorCanvasComponent && currentUri ? (
                       <SkiaEditorCanvasComponent
                         ref={canvasRef}
@@ -498,38 +565,69 @@ export default function PhotoEditorScreen() {
                     ) : null}
 
                     {textLayers.map((layer) => (
-                      <DraggableText key={layer.id} layer={layer} isExporting={isExporting} onUpdatePosition={updateTextPosition} />
+                      <DraggableText 
+                        key={layer.id} 
+                        layer={layer} 
+                        isActive={activeLayerId === layer.id}
+                        isExporting={isExporting} 
+                        onUpdatePosition={updateTextPosition} 
+                        onSelect={setActiveLayerId}
+                        onDelete={deleteLayer}
+                      />
                     ))}
 
                     {stickerLayers.map((sticker) => (
-                      <DraggableSticker key={sticker.id} layer={sticker} isExporting={isExporting} onUpdateLayer={updateStickerLayer} />
+                      <DraggableSticker 
+                        key={sticker.id} 
+                        layer={sticker} 
+                        isActive={activeLayerId === sticker.id}
+                        isExporting={isExporting} 
+                        onUpdateLayer={updateStickerLayer} 
+                        onSelect={setActiveLayerId}
+                        onDelete={deleteLayer}
+                      />
                     ))}
                   </View>
+                  </Pressable>
                 </GestureDetector>
               </View>
 
-              {/* ── Text Input Mode ────────────────────────────────── */}
-              {activeTool === "text" && (
-                <View style={styles.textInputContainer}>
+              {/* ── Text Input Mode & Active Text Layer Edit ───────────────── */}
+              {(activeTool === "text" || activeTextLayer) && (
+                <View style={[styles.textInputContainer, !activeTool && { position: 'absolute', bottom: 100, width: '100%', alignItems: 'center' }]}>
                   <TextControlsBar
-                    align={textAlign} bgStyle={textBgStyle} color={textColor} bold={textBold}
-                    onAlignToggle={() => setTextAlign((a) => a === "left" ? "center" : a === "center" ? "right" : "left")}
-                    onBgToggle={() => setTextBgStyle((s) => (s === "none" ? "solid" : "none"))}
-                    onBoldToggle={() => setTextBold((b) => !b)}
+                    align={activeTextLayer ? activeTextLayer.align : textAlign} 
+                    bgStyle={activeTextLayer ? activeTextLayer.bgStyle : textBgStyle} 
+                    color={activeTextLayer ? activeTextLayer.color : textColor} 
+                    bold={activeTextLayer ? activeTextLayer.bold : textBold}
+                    onAlignToggle={() => {
+                      if (activeTextLayer) updateActiveTextLayer({ align: activeTextLayer.align === "left" ? "center" : activeTextLayer.align === "center" ? "right" : "left" });
+                      else setTextAlign((a) => a === "left" ? "center" : a === "center" ? "right" : "left");
+                    }}
+                    onBgToggle={() => {
+                      if (activeTextLayer) updateActiveTextLayer({ bgStyle: activeTextLayer.bgStyle === "none" ? "solid" : "none" });
+                      else setTextBgStyle((s) => (s === "none" ? "solid" : "none"));
+                    }}
+                    onBoldToggle={() => {
+                      if (activeTextLayer) updateActiveTextLayer({ bold: !activeTextLayer.bold });
+                      else setTextBold((b) => !b);
+                    }}
                     onColorPress={() => setShowColorSheet(true)}
                   />
-                  <TextInput
-                    style={[styles.textInput, { color: textColor, fontWeight: textBold ? "700" : "400", textAlign: textAlign }]}
-                    value={editingText}
-                    onChangeText={setEditingText}
-                    placeholder="Type something..."
-                    placeholderTextColor="rgba(255,255,255,0.35)"
-                    autoFocus
-                    multiline
-                    returnKeyType="done"
-                    onSubmitEditing={addTextLayer}
-                    blurOnSubmit
-                  />
+                  {activeTool === "text" && (
+                    <TextInput
+                      style={[styles.textInput, { color: textColor, fontWeight: textBold ? "700" : "400", textAlign: textAlign }]}
+                      value={editingText}
+                      onChangeText={setEditingText}
+                      placeholder="Type something..."
+                      placeholderTextColor="rgba(255,255,255,0.35)"
+                      autoFocus
+                      multiline
+                      returnKeyType="done"
+                      onSubmitEditing={addTextLayer}
+                      blurOnSubmit
+                    />
+                  )}
                 </View>
               )}
 
@@ -552,7 +650,17 @@ export default function PhotoEditorScreen() {
                 </View>
               )}
 
-              <ColorSheet visible={showColorSheet} selected={activeTool === "draw" ? brushColor : textColor} onSelect={(c: string) => { if (activeTool === "draw") setBrushColor(c); else setTextColor(c); setShowColorSheet(false); }} onClose={() => setShowColorSheet(false)} />
+              <ColorSheet 
+                visible={showColorSheet} 
+                selected={activeTool === "draw" ? brushColor : (activeTextLayer ? activeTextLayer.color : textColor)} 
+                onSelect={(c: string) => { 
+                  if (activeTool === "draw") setBrushColor(c); 
+                  else if (activeTextLayer) updateActiveTextLayer({ color: c });
+                  else setTextColor(c); 
+                  setShowColorSheet(false); 
+                }} 
+                onClose={() => setShowColorSheet(false)} 
+              />
               <StickerSheet visible={showStickerSheet} onSelect={addSticker} onClose={() => setShowStickerSheet(false)} />
             </View>
           </KeyboardAvoidingView>

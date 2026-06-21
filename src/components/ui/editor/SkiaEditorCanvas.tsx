@@ -34,6 +34,7 @@ import {
   Skia,
   Group,
   RoundedRect,
+  Paint,
 } from '@shopify/react-native-skia';
 import type { DrawPath, TextLayer, StickerLayer } from './editorTypes';
 
@@ -157,28 +158,30 @@ export const SkiaEditorCanvas = forwardRef<SkiaEditorCanvasHandle, Props>(
         )}
 
         {/* ── Drawing paths ──────────────────────────────────────────────── */}
-        {drawPaths.map((dp) => {
-          if (dp.points.length === 0) return null;
-          const isEraser = dp.brushType === 'eraser';
-          const smooth = SMOOTH_BRUSHES.has(dp.brushType);
-          const pathStr = buildPathString(dp.points, smooth);
-          const skPath = Skia.Path.MakeFromSVGString(pathStr);
-          if (!skPath) return null;
+        <Group layer={<Paint />}>
+          {drawPaths.map((dp) => {
+            if (dp.points.length === 0) return null;
+            const isEraser = dp.brushType === 'eraser';
+            const smooth = SMOOTH_BRUSHES.has(dp.brushType);
+            const pathStr = buildPathString(dp.points, smooth);
+            const skPath = Skia.Path.MakeFromSVGString(pathStr);
+            if (!skPath) return null;
 
-          return (
-            <Path
-              key={dp.id}
-              path={skPath}
-              color={isEraser ? '#000000' : dp.color}
-              style="stroke"
-              strokeWidth={dp.strokeWidth}
-              strokeCap="round"
-              strokeJoin="round"
-              opacity={isEraser ? 1 : dp.opacity}
-              blendMode={isEraser ? 'clear' : 'srcOver'}
-            />
-          );
-        })}
+            return (
+              <Path
+                key={dp.id}
+                path={skPath}
+                color={isEraser ? '#000000' : dp.color}
+                style="stroke"
+                strokeWidth={dp.strokeWidth}
+                strokeCap="round"
+                strokeJoin="round"
+                opacity={isEraser ? 1 : dp.opacity}
+                blendMode={isEraser ? 'clear' : 'srcOver'}
+              />
+            );
+          })}
+        </Group>
 
         {/* ── Text layers ────────────────────────────────────────────────── */}
         {textLayers.map((layer) => {
@@ -192,10 +195,21 @@ export const SkiaEditorCanvas = forwardRef<SkiaEditorCanvasHandle, Props>(
           if (layer.align === 'center') textX = layer.x - estimatedWidth / 2;
           if (layer.align === 'right') textX = layer.x - estimatedWidth;
 
-          const bgPad = 6;
+          const pivotX = textX + estimatedWidth / 2;
+          const pivotY = layer.y - estimatedHeight / 2;
 
           return (
-            <Group key={layer.id}>
+            <Group 
+              key={layer.id}
+              transform={[
+                { translateX: pivotX },
+                { translateY: pivotY },
+                { rotate: layer.rotation || 0 },
+                { scale: layer.scale || 1 },
+                { translateX: -pivotX },
+                { translateY: -pivotY },
+              ]}
+            >
               {/* Solid background badge */}
               {layer.bgStyle === 'solid' && (
                 <RoundedRect
@@ -220,17 +234,32 @@ export const SkiaEditorCanvas = forwardRef<SkiaEditorCanvasHandle, Props>(
 
         {/* ── Sticker layers ─────────────────────────────────────────────── */}
         {stickerLayers.map((sticker) => {
-          const emojiFont = getFont(52 * sticker.scale, false);
+          const emojiFont = getFont(52, false);
           if (!emojiFont) return null;
+          
+          const pivotX = sticker.x + 26;
+          const pivotY = sticker.y - 26;
+
           return (
-            <SkText
+            <Group
               key={sticker.id}
-              x={sticker.x}
-              y={sticker.y}
-              text={sticker.emoji}
-              font={emojiFont}
-              color="white" // Skia ignores this for emoji glyphs
-            />
+              transform={[
+                { translateX: pivotX },
+                { translateY: pivotY },
+                { rotate: sticker.rotation || 0 },
+                { scale: sticker.scale || 1 },
+                { translateX: -pivotX },
+                { translateY: -pivotY },
+              ]}
+            >
+              <SkText
+                x={sticker.x}
+                y={sticker.y}
+                text={sticker.emoji}
+                font={emojiFont}
+                color="white" // Skia ignores this for emoji glyphs
+              />
+            </Group>
           );
         })}
       </Canvas>
