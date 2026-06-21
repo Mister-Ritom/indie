@@ -18,7 +18,7 @@ export default function TabLayout() {
         <Tabs
           screenOptions={{
             headerShown: false,
-            tabBarShowLabel: false,
+
             // Hide bottom tab bar if showing sidebar
             tabBarStyle: showSidebar
               ? { display: "none" }
@@ -27,6 +27,8 @@ export default function TabLayout() {
                   borderTopColor: colors.tabBarBorder,
                   elevation: 0,
                   height: 60,
+                  justifyContent: "center",
+                  alignItems: "center",
                 },
             tabBarActiveTintColor: colors.tabBarActive,
             tabBarInactiveTintColor: colors.tabBarInactive,

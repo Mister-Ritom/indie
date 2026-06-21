@@ -18,7 +18,7 @@ export function useTheme(): {
 
   useEffect(() => {
     const resolved =
-      mode === 'system' ? (systemScheme ?? 'light') : mode;
+      mode === 'system' ? (systemScheme === 'dark' ? 'dark' : 'light') : mode;
     setResolvedScheme(resolved);
   }, [mode, systemScheme]);
 
