@@ -3,6 +3,10 @@ import { Stack, router, useRootNavigationState, useSegments } from 'expo-router'
 import { View, ActivityIndicator, Platform } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+// Platform-specific: .web.ts calls LoadSkiaWeb, .ts is a no-op stub.
+// Metro automatically picks the correct file — canvaskit-wasm is NEVER
+// bundled for iOS / Android this way.
+import '@/utils/skiaWebSetup';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import {
   useFonts,
@@ -130,6 +134,7 @@ function RootLayoutInner() {
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(onboarding)" />
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="photo-editor" options={{ presentation: 'fullScreenModal' }} />
         <Stack.Screen name="pin/[id]" options={{ presentation: 'card' }} />
         <Stack.Screen name="user/[username]" options={{ presentation: 'card' }} />
         <Stack.Screen name="board/[id]" options={{ presentation: 'card' }} />

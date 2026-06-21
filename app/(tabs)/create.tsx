@@ -14,7 +14,7 @@ import { router } from "expo-router";
 import * as Crypto from "expo-crypto";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ImagePlus, X, ChevronDown } from "lucide-react-native";
+import { ImagePlus, X, ChevronDown, Pencil } from "lucide-react-native";
 import { useTheme } from "@/hooks/useTheme";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 import { Input } from "@/components/ui/Input";
@@ -30,6 +30,7 @@ import {
   compressImage,
   uploadToStorage,
 } from "@/utils/imageUpload";
+import { useEditorStore } from "@/stores/editorStore";
 import type { Interest, Board } from "@/types/database";
 
 export default function CreatePinScreen() {
@@ -38,9 +39,20 @@ export default function CreatePinScreen() {
   const { user } = useAuthStore();
 
   const [imageUri, setImageUri] = useState<string | null>(null);
+  const [imageWidth, setImageWidth] = useState(0);
+  const [imageHeight, setImageHeight] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const [interests, setInterests] = useState<Interest[]>([]);
   const [boards, setBoards] = useState<Board[]>([]);
+
+  const { setOriginalImage, editedUri, clear: clearEditorStore } = useEditorStore();
+
+  useEffect(() => {
+    if (editedUri) {
+      setImageUri(editedUri);
+      clearEditorStore();
+    }
+  }, [editedUri, clearEditorStore]);
 
   const [showInterestPicker, setShowInterestPicker] = useState(false);
   const [showBoardPicker, setShowBoardPicker] = useState(false);
@@ -93,7 +105,13 @@ export default function CreatePinScreen() {
       return;
     }
     const asset = await pickImageFromGallery();
-    if (asset) setImageUri(asset.uri);
+    if (asset) {
+      const isGif = asset.uri.toLowerCase().endsWith(".gif");
+      const { uri, width, height } = await compressImage(asset.uri, isGif);
+      setImageUri(uri);
+      setImageWidth(width > 0 ? width : (asset.width ?? 0));
+      setImageHeight(height > 0 ? height : (asset.height ?? 0));
+    }
   };
 
   const handleTakePhoto = async () => {
@@ -103,7 +121,13 @@ export default function CreatePinScreen() {
       return;
     }
     const asset = await takePhoto();
-    if (asset) setImageUri(asset.uri);
+    if (asset) {
+      const isGif = asset.uri.toLowerCase().endsWith(".gif");
+      const { uri, width, height } = await compressImage(asset.uri, isGif);
+      setImageUri(uri);
+      setImageWidth(width > 0 ? width : (asset.width ?? 0));
+      setImageHeight(height > 0 ? height : (asset.height ?? 0));
+    }
   };
 
   const onSubmit = async (data: CreatePinForm) => {
@@ -111,9 +135,7 @@ export default function CreatePinScreen() {
     setIsUploading(true);
 
     try {
-      // 1. Client-side compression
       const isGif = imageUri.toLowerCase().endsWith(".gif");
-      const { uri, width, height } = await compressImage(imageUri, isGif);
 
       // 2. Generate a random UUID for the new pin
       const pinId = Crypto.randomUUID();
@@ -123,7 +145,7 @@ export default function CreatePinScreen() {
       await uploadToStorage(
         "pin-originals",
         path,
-        uri,
+        imageUri,
         isGif ? "image/gif" : "image/jpeg",
       );
 
@@ -141,8 +163,8 @@ export default function CreatePinScreen() {
           link: data.link,
           alt_text: data.alt_text,
           media_type: isGif ? "gif" : "image",
-          width: width > 0 ? width : null,
-          height: height > 0 ? height : null,
+          width: imageWidth > 0 ? imageWidth : null,
+          height: imageHeight > 0 ? imageHeight : null,
         })
         .select()
         .single();
@@ -202,6 +224,7 @@ export default function CreatePinScreen() {
                     style={{ flex: 1, width: "100%", height: "100%" }}
                     resizeMode="contain"
                   />
+                  {/* ── Close button ────────────────────── */}
                   <TouchableOpacity
                     onPress={() => setImageUri(null)}
                     style={{
@@ -214,6 +237,23 @@ export default function CreatePinScreen() {
                     }}
                   >
                     <X size={20} color="#fff" />
+                  </TouchableOpacity>
+                  {/* ── Edit / Pencil button (Pinterest-style) ── */}
+                  <TouchableOpacity
+                    onPress={() => {
+                      setOriginalImage(imageUri, imageWidth, imageHeight);
+                      router.push("/photo-editor");
+                    }}
+                    style={{
+                      position: "absolute",
+                      top: spacing.md,
+                      right: spacing.md + 48,
+                      backgroundColor: "rgba(28,28,28,0.85)",
+                      padding: 8,
+                      borderRadius: radius.pill,
+                    }}
+                  >
+                    <Pencil size={18} color="#fff" />
                   </TouchableOpacity>
                 </View>
               ) : (
@@ -511,6 +551,7 @@ export default function CreatePinScreen() {
           </TouchableOpacity>
         ))}
       </Modal>
+
     </SafeAreaView>
   );
 }
