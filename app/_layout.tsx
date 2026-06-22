@@ -134,6 +134,15 @@ function RootLayoutInner() {
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(onboarding)" />
         <Stack.Screen name="(tabs)" />
+        {/* Root-level transparent modal — overlays tabs + tab bar */}
+        <Stack.Screen
+          name="create-menu"
+          options={{
+            presentation: 'transparentModal',
+            animation: 'fade',
+            contentStyle: { backgroundColor: 'transparent' },
+          }}
+        />
         <Stack.Screen name="photo-editor" options={{ presentation: 'fullScreenModal' }} />
         <Stack.Screen name="pin/[id]" options={{ presentation: 'card' }} />
         <Stack.Screen name="user/[username]" options={{ presentation: 'card' }} />
@@ -143,6 +152,8 @@ function RootLayoutInner() {
         <Stack.Screen name="settings/manage-interests" options={{ presentation: 'card' }} />
         <Stack.Screen name="legal/terms" options={{ presentation: 'card', headerShown: true, title: 'Terms of Service' }} />
         <Stack.Screen name="legal/privacy" options={{ presentation: 'card', headerShown: true, title: 'Privacy Policy' }} />
+        <Stack.Screen name="create/pin" options={{ presentation: 'fullScreenModal' }} />
+        <Stack.Screen name="create/board" options={{ presentation: 'fullScreenModal' }} />
         <Stack.Screen name="+not-found" />
       </Stack>
     </>

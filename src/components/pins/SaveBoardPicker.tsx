@@ -5,12 +5,10 @@ import {
   TouchableOpacity,
   FlatList,
   ActivityIndicator,
-  TextInput,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Plus } from 'lucide-react-native';
 import { Modal } from '@/components/ui/Modal';
-import { Button } from '@/components/ui/Button';
 import { useTheme } from '@/hooks/useTheme';
 import { supabase } from '@/lib/supabase/client';
 import { useAuthStore } from '@/stores/authStore';
@@ -30,9 +28,6 @@ export function SaveBoardPicker({ visible, pin, onClose, onSaved }: SaveBoardPic
   const [boards, setBoards] = useState<Board[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [saving, setSaving] = useState<string | null>(null);
-  const [showCreate, setShowCreate] = useState(false);
-  const [newName, setNewName] = useState('');
-  const [creating, setCreating] = useState(false);
 
   useEffect(() => {
     if (!visible || !user) return;
@@ -59,23 +54,6 @@ export function SaveBoardPicker({ visible, pin, onClose, onSaved }: SaveBoardPic
     onClose();
   };
 
-  const handleCreateBoard = async () => {
-    if (!user || !newName.trim()) return;
-    setCreating(true);
-    const { data } = await supabase
-      .from('boards')
-      .insert({ user_id: user.id, name: newName.trim(), is_private: false })
-      .select()
-      .single();
-    if (data) {
-      setBoards((prev) => [data, ...prev]);
-      await handleSave(data.id);
-    }
-    setCreating(false);
-    setShowCreate(false);
-    setNewName('');
-  };
-
   return (
     <Modal visible={visible} onClose={onClose} title="Save to board">
       {/* Save without board */}
@@ -97,48 +75,25 @@ export function SaveBoardPicker({ visible, pin, onClose, onSaved }: SaveBoardPic
       </TouchableOpacity>
 
       {/* Create new board */}
-      {showCreate ? (
-        <View style={{ paddingVertical: spacing.md, gap: spacing.sm }}>
-          <TextInput
-            value={newName}
-            onChangeText={setNewName}
-            placeholder="Board name"
-            placeholderTextColor={colors.textTertiary}
-            style={{
-              fontFamily: typography.families.body,
-              fontSize: typography.scale.body,
-              color: colors.text,
-              backgroundColor: colors.inputBg,
-              borderRadius: radius.md,
-              paddingHorizontal: spacing.md,
-              paddingVertical: spacing.sm + 2,
-              borderWidth: 1,
-              borderColor: colors.border,
-            }}
-          />
-          <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-            <Button label="Cancel" variant="outline" size="sm" onPress={() => setShowCreate(false)} />
-            <Button label="Create & Save" variant="primary" size="sm" isLoading={creating} onPress={handleCreateBoard} />
-          </View>
-        </View>
-      ) : (
-        <TouchableOpacity
-          onPress={() => setShowCreate(true)}
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: spacing.sm,
-            paddingVertical: spacing.md,
-            borderBottomWidth: 1,
-            borderBottomColor: colors.border,
-          }}
-        >
-          <Plus size={18} color={colors.primary} />
-          <Text style={{ fontFamily: typography.families.bodyMedium, fontSize: typography.scale.body, color: colors.primary }}>
-            Create new board
-          </Text>
-        </TouchableOpacity>
-      )}
+      <TouchableOpacity
+        onPress={() => {
+          onClose();
+          router.push('/create/board');
+        }}
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: spacing.sm,
+          paddingVertical: spacing.md,
+          borderBottomWidth: 1,
+          borderBottomColor: colors.border,
+        }}
+      >
+        <Plus size={18} color={colors.primary} />
+        <Text style={{ fontFamily: typography.families.bodyMedium, fontSize: typography.scale.body, color: colors.primary }}>
+          Create new board
+        </Text>
+      </TouchableOpacity>
 
       {isLoading ? (
         <ActivityIndicator style={{ marginTop: spacing.lg }} color={colors.primary} />

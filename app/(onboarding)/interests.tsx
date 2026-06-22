@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, ImageBackground } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Check } from 'lucide-react-native';
@@ -73,46 +74,93 @@ export default function InterestsScreen() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       <ScrollView contentContainerStyle={{ padding: spacing.xl, paddingBottom: 100 }}>
-        <Text style={{ fontFamily: typography.families.headingBold, fontSize: 32, color: colors.text, marginBottom: spacing.xs }}>
-          What are you into?
-        </Text>
-        <Text style={{ fontFamily: typography.families.body, fontSize: typography.scale.bodyLarge, color: colors.textSecondary, marginBottom: spacing.xl }}>
-          Pick at least 3 topics to personalize your feed.
-        </Text>
+        <View style={{ marginBottom: spacing.xl }}>
+          <Text style={{ fontFamily: typography.families.headingBold, fontSize: 32, color: colors.text, marginBottom: spacing.xs }}>
+            What are you into?
+          </Text>
+          <Text style={{ fontFamily: typography.families.body, fontSize: typography.scale.bodyLarge, color: colors.textSecondary }}>
+            Pick at least 3 topics to personalize your feed.
+          </Text>
+        </View>
 
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
-          {interests.map((interest) => {
-            const isSelected = selected.has(interest.id);
-            return (
-              <TouchableOpacity
-                key={interest.id}
-                onPress={() => toggleInterest(interest.id)}
-                activeOpacity={0.8}
-                style={{
-                  backgroundColor: isSelected ? colors.primary : colors.surface,
-                  paddingVertical: spacing.md,
-                  paddingHorizontal: spacing.lg,
-                  borderRadius: radius.pill,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: spacing.xs,
-                  borderWidth: 1.5,
-                  borderColor: isSelected ? colors.primary : colors.border,
-                }}
-              >
-                {isSelected && <Check size={18} color="#fff" strokeWidth={3} />}
-                <Text
+        <View style={{ flexDirection: 'row', gap: spacing.md }}>
+          {/* Left Column */}
+          <View style={{ flex: 1, gap: spacing.md }}>
+            {interests.filter((_, i) => i % 2 === 0).map((interest, idx) => {
+              const isSelected = selected.has(interest.id);
+              const heights = [220, 160, 260, 180, 200];
+              const height = heights[idx % heights.length];
+              return (
+                <TouchableOpacity
+                  key={interest.id}
+                  onPress={() => toggleInterest(interest.id)}
+                  activeOpacity={0.8}
                   style={{
-                    fontFamily: isSelected ? typography.families.bodyBold : typography.families.bodyMedium,
-                    fontSize: typography.scale.body,
-                    color: isSelected ? '#fff' : colors.text,
+                    height,
+                    borderRadius: radius.lg,
+                    overflow: 'hidden',
+                    borderWidth: 2,
+                    borderColor: isSelected ? colors.primary : 'transparent',
                   }}
                 >
-                  {interest.name}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
+                  <ImageBackground
+                    source={{ uri: interest.cover_image_url || 'https://images.unsplash.com/photo-1557683316-973673baf926?auto=format&fit=crop&q=80&w=400' }}
+                    style={{ flex: 1 }}
+                  >
+                    <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center', padding: spacing.sm }}>
+                      {isSelected && (
+                        <View style={{ position: 'absolute', top: 12, right: 12, backgroundColor: colors.primary, borderRadius: 12, padding: 4 }}>
+                          <Check size={16} color="#fff" strokeWidth={3} />
+                        </View>
+                      )}
+                      <Text style={{ fontFamily: typography.families.headingBold, fontSize: 22, color: '#fff', textAlign: 'center' }}>
+                        {interest.name}
+                      </Text>
+                    </View>
+                  </ImageBackground>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          {/* Right Column */}
+          <View style={{ flex: 1, gap: spacing.md }}>
+            {interests.filter((_, i) => i % 2 !== 0).map((interest, idx) => {
+              const isSelected = selected.has(interest.id);
+              const heights = [180, 240, 160, 220, 250];
+              const height = heights[idx % heights.length];
+              return (
+                <TouchableOpacity
+                  key={interest.id}
+                  onPress={() => toggleInterest(interest.id)}
+                  activeOpacity={0.8}
+                  style={{
+                    height,
+                    borderRadius: radius.lg,
+                    overflow: 'hidden',
+                    borderWidth: 2,
+                    borderColor: isSelected ? colors.primary : 'transparent',
+                  }}
+                >
+                  <ImageBackground
+                    source={{ uri: interest.cover_image_url || 'https://images.unsplash.com/photo-1557683316-973673baf926?auto=format&fit=crop&q=80&w=400' }}
+                    style={{ flex: 1 }}
+                  >
+                    <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center', padding: spacing.sm }}>
+                      {isSelected && (
+                        <View style={{ position: 'absolute', top: 12, right: 12, backgroundColor: colors.primary, borderRadius: 12, padding: 4 }}>
+                          <Check size={16} color="#fff" strokeWidth={3} />
+                        </View>
+                      )}
+                      <Text style={{ fontFamily: typography.families.headingBold, fontSize: 22, color: '#fff', textAlign: 'center' }}>
+                        {interest.name}
+                      </Text>
+                    </View>
+                  </ImageBackground>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
         </View>
       </ScrollView>
 

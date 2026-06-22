@@ -67,6 +67,18 @@ export default function TabLayout() {
                   strokeWidth={focused ? 2.5 : 2}
                 />
               ),
+
+              animation: "fade",
+            }}
+            listeners={{
+              tabPress: (e) => {
+                // Prevent the default tab navigation
+                e.preventDefault();
+                // Push the create menu as a root-level transparent modal
+                // so the actual current tab content stays visible behind it
+                const { router } = require("expo-router");
+                router.push("/create-menu");
+              },
             }}
           />
           <Tabs.Screen

@@ -99,7 +99,7 @@ export function useFeaturedBoards() {
           .select(`
             *,
             profile:user_id(id, username, avatar_url, full_name),
-            pins(*, assets:pin_assets(*))
+            saves(pin:pin_id(*, assets:pin_assets(*)))
           `)
           .in('id', ids);
 
@@ -109,11 +109,14 @@ export function useFeaturedBoards() {
         const sortedBoardsData = ids.map(id => boardsData.find(b => b.id === id)).filter(Boolean);
 
         const transformedBoards = sortedBoardsData.map((b: any) => {
-          const pinsCount = b.pins?.length || 0;
+          // Each save row has shape { pin: PinObject } — unwrap
+          const boardPins = (b.saves ?? [])
+            .map((s: any) => s.pin)
+            .filter(Boolean);
           return {
             ...b,
-            pins_count: pinsCount,
-            pins: b.pins || [],
+            pins_count: boardPins.length,
+            pins: boardPins,
           };
         });
         

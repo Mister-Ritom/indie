@@ -27,14 +27,26 @@ export default function BoardScreen() {
     let isMounted = true;
     const fetchBoard = async () => {
       setIsLoading(true);
-      const [boardRes, pinsRes] = await Promise.all([
+      // Load pins via the saves table (board_id column), which captures both
+    // pins saved via SaveBoardPicker and pins added during board creation.
+    const [boardRes, savesRes] = await Promise.all([
         supabase.from('boards').select('*').eq('id', id).single(),
-        supabase.from('pins').select('*, profile:user_id(id, username, avatar_url, full_name), assets:pin_assets(*)').eq('board_id', id).order('created_at', { ascending: false })
+        supabase
+          .from('saves')
+          .select('pin:pin_id(*, profile:user_id(id, username, avatar_url, full_name), assets:pin_assets(*))')
+          .eq('board_id', id)
+          .order('created_at', { ascending: false })
       ]);
       
       if (isMounted) {
         if (boardRes.data) setBoard(boardRes.data);
-        if (pinsRes.data) setPins(pinsRes.data);
+        if (savesRes.data) {
+          // Each save row has shape { pin: PinObject } — unwrap
+          const boardPins = savesRes.data
+            .map((s: any) => s.pin)
+            .filter(Boolean);
+          setPins(boardPins);
+        }
         setIsLoading(false);
       }
     };

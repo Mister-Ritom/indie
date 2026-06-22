@@ -37,17 +37,37 @@ CREATE TABLE profiles (
 CREATE TABLE interests (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT UNIQUE NOT NULL,
-    slug TEXT UNIQUE NOT NULL
+    slug TEXT UNIQUE NOT NULL,
+    cover_image_url TEXT
 );
 
 -- Seed some default interests
-INSERT INTO interests (name, slug) VALUES 
-('Photography', 'photography'),
-('UI Design', 'ui-design'),
-('Architecture', 'architecture'),
-('Illustration', 'illustration'),
-('Typography', 'typography'),
-('Fashion', 'fashion');
+INSERT INTO interests (name, slug, cover_image_url) VALUES 
+('Photography', 'photography', 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&q=80&w=1000'),
+('UI Design', 'ui-design', 'https://images.unsplash.com/photo-1561070791-2526d30994b5?auto=format&fit=crop&q=80&w=1000'),
+('Architecture', 'architecture', 'https://images.unsplash.com/photo-1511818966892-d7d671e672a2?auto=format&fit=crop&q=80&w=1000'),
+('Illustration', 'illustration', 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80&w=1000'),
+('Typography', 'typography', 'https://images.unsplash.com/photo-1564347288827-3e4293543e07?auto=format&fit=crop&q=80&w=1000'),
+('Fashion', 'fashion', 'https://images.unsplash.com/photo-1445205170230-053b83016050?auto=format&fit=crop&q=80&w=1000'),
+('Travel', 'travel', 'https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?auto=format&fit=crop&q=80&w=1000'),
+('Food & Drink', 'food-drink', 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&q=80&w=1000'),
+('Quotes', 'quotes', 'https://images.unsplash.com/photo-1493612276216-ee3925520721?auto=format&fit=crop&q=80&w=1000'),
+('Memes', 'memes', 'https://images.unsplash.com/photo-1535930891776-0c2dfb7fda1a?auto=format&fit=crop&q=80&w=1000'),
+('Gaming', 'gaming', 'https://images.unsplash.com/photo-1538481199705-c710c4e965fc?auto=format&fit=crop&q=80&w=1000'),
+('Music', 'music', 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&q=80&w=1000'),
+('Anime', 'anime', 'https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&q=80&w=1000'),
+('Cars & Motorcycles', 'cars', 'https://images.unsplash.com/photo-1494976388531-d1058494cdd8?auto=format&fit=crop&q=80&w=1000'),
+('Fitness & Health', 'fitness', 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&q=80&w=1000'),
+('Art & Painting', 'art', 'https://images.unsplash.com/photo-1460661419201-fd4cecdf8a8b?auto=format&fit=crop&q=80&w=1000'),
+('DIY & Crafts', 'diy', 'https://images.unsplash.com/photo-1513519245088-0e12902e5a38?auto=format&fit=crop&q=80&w=1000'),
+('Animals & Pets', 'animals', 'https://images.unsplash.com/photo-1450778869180-41d0601e046e?auto=format&fit=crop&q=80&w=1000'),
+('Nature & Outdoors', 'nature', 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&q=80&w=1000'),
+('Home Decor', 'home-decor', 'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&q=80&w=1000'),
+('Beauty & Makeup', 'beauty', 'https://images.unsplash.com/photo-1522337660859-02fbefca4702?auto=format&fit=crop&q=80&w=1000'),
+('Tattoos', 'tattoos', 'https://images.unsplash.com/photo-1562962230-16e4623d36e6?auto=format&fit=crop&q=80&w=1000'),
+('Graphic Design', 'graphic-design', 'https://images.unsplash.com/photo-1626785774573-4b799315345d?auto=format&fit=crop&q=80&w=1000'),
+('3D Art', '3d-art', 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80&w=1000'),
+('Movies & TV', 'movies', 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&q=80&w=1000');
 
 CREATE TABLE user_interests (
     user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
