@@ -14,7 +14,6 @@ import { X } from 'lucide-react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
-  withSpring,
   withTiming,
 } from 'react-native-reanimated';
 import { useTheme } from '@/hooks/useTheme';
@@ -35,7 +34,7 @@ export function Modal({ visible, onClose, title, children, height = 'auto' }: Mo
   useEffect(() => {
     if (visible) {
       opacity.value = withTiming(1, { duration: 200 });
-      translateY.value = withSpring(0, { damping: 20, stiffness: 200 });
+      translateY.value = withTiming(0, { duration: 250 });
     } else {
       opacity.value = withTiming(0, { duration: 180 });
       translateY.value = withTiming(600, { duration: 220 });
@@ -59,6 +58,7 @@ export function Modal({ visible, onClose, title, children, height = 'auto' }: Mo
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
       >
+        {/* Backdrop — tapping it closes the modal */}
         <TouchableWithoutFeedback onPress={onClose}>
           <Animated.View
             style={[
@@ -85,6 +85,8 @@ export function Modal({ visible, onClose, title, children, height = 'auto' }: Mo
             },
             sheetStyle,
           ]}
+          // Absorb touches on empty areas of the sheet so they don't fall through to the backdrop
+          onStartShouldSetResponder={() => true}
         >
           {/* Handle */}
           <View style={{ alignItems: 'center', paddingTop: spacing.sm }}>

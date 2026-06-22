@@ -245,6 +245,29 @@ export interface Database {
           processed_for_scores?: boolean;
         };
       };
+      notifications: {
+        Row: {
+          id: string;
+          user_id: string;
+          actor_id: string;
+          type: 'like' | 'comment' | 'follow';
+          pin_id: string | null;
+          read: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          actor_id: string;
+          type: 'like' | 'comment' | 'follow';
+          pin_id?: string | null;
+          read?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          read?: boolean;
+        };
+      };
       saves: {
         Row: {
           user_id: string;
@@ -303,13 +326,35 @@ export interface Database {
     };
     Views: Record<string, never>;
     Functions: {
-      get_feed: {
+      get_feed_pins: {
         Args: {
-          p_user_id: string;
-          p_limit: number;
-          p_offset: number;
+          viewer_id: string;
+          page_limit: number;
+          page_offset: number;
         };
-        Returns: FeedPin[];
+        Returns: { id: string; score: number }[];
+      };
+      get_discovery_carousel_pins: {
+        Args: {
+          viewer_id: string;
+          page_limit: number;
+        };
+        Returns: { id: string; score: number }[];
+      };
+      get_featured_boards: {
+        Args: {
+          viewer_id: string;
+          page_limit: number;
+        };
+        Returns: { id: string; score: number }[];
+      };
+      get_discovery_ideas_pins: {
+        Args: {
+          viewer_id: string;
+          page_limit: number;
+          page_offset: number;
+        };
+        Returns: { id: string; score: number }[];
       };
     };
     Enums: Record<string, never>;

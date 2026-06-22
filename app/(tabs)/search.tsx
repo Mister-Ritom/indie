@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Search as SearchIcon, X } from 'lucide-react-native';
+import { Search as SearchIcon, X, Camera } from 'lucide-react-native';
 import { useTheme } from '@/hooks/useTheme';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { MasonryGrid } from '@/components/pins/MasonryGrid';
 import { SaveBoardPicker } from '@/components/pins/SaveBoardPicker';
+import { DiscoveryFeed } from '@/components/discovery/DiscoveryFeed';
 import { supabase } from '@/lib/supabase/client';
 import type { FeedPin } from '@/types/database';
 
@@ -95,9 +96,13 @@ export default function SearchScreen() {
             } as any}
             autoFocus={false}
           />
-          {query.length > 0 && (
+          {query.length > 0 ? (
             <TouchableOpacity onPress={() => setQuery('')}>
               <X size={20} color={colors.icon} />
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity onPress={() => {}}>
+              <Camera size={20} color={colors.iconMuted} />
             </TouchableOpacity>
           )}
         </View>
@@ -105,11 +110,7 @@ export default function SearchScreen() {
 
       <View style={{ flex: 1 }}>
         {!debouncedQuery ? (
-          <View style={{ padding: spacing.xl, alignItems: 'center' }}>
-            <Text style={{ fontFamily: typography.families.bodyMedium, fontSize: typography.scale.bodyLarge, color: colors.textSecondary }}>
-              Search for anything
-            </Text>
-          </View>
+          <DiscoveryFeed onSavePin={setSavingPin} />
         ) : (
           <MasonryGrid
             pins={results}

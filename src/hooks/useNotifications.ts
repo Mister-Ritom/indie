@@ -11,80 +11,53 @@ export function useNotifications() {
 
   const fetchNotifications = useCallback(async () => {
     if (!user) return;
-    // Pull likes, comments, follows targeting this user
-    const [likesRes, commentsRes, followsRes] = await Promise.all([
-      supabase
-        .from("likes")
-        .select(
-          "user_id, pin_id, created_at, profiles:user_id(id, username, avatar_url), pins:pin_id(id, title, dominant_color)",
-        )
-        .neq("user_id", user.id)
-        .eq("pins.user_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(30),
-      supabase
-        .from("comments")
-        .select(
-          "id, pin_id, user_id, text, created_at, profiles:user_id(id, username, avatar_url), pins:pin_id(id, title, dominant_color, user_id)",
-        )
-        .eq("pins.user_id", user.id)
-        .neq("user_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(30),
-      supabase
-        .from("follows")
-        .select(
-          "follower_id, created_at, profiles:follower_id(id, username, avatar_url)",
-        )
-        .eq("following_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(30),
-    ]);
+    
+    const { data, error } = await supabase
+      .from("notifications")
+      .select(`
+        id,
+        type,
+        read,
+        created_at,
+        actor:actor_id(id, username, avatar_url),
+        pin:pin_id(id, title, dominant_color)
+      `)
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(50);
 
-    const allNotifications: Notification[] = [];
+    if (error) {
+      console.error("Error fetching notifications:", error);
+      return;
+    }
 
-    (likesRes.data ?? []).forEach((row: any) => {
-      if (!row.profiles || !row.pins) return;
-      allNotifications.push({
-        id: `like-${row.user_id}-${row.pin_id}`,
-        type: "like",
-        actor: row.profiles,
-        pin: row.pins,
-        created_at: row.created_at,
-        read: false,
-      });
-    });
+    const formattedNotifications = (data ?? []).map((row: any) => ({
+      id: row.id,
+      type: row.type,
+      read: row.read,
+      created_at: row.created_at,
+      actor: row.actor,
+      pin: row.pin,
+    }));
 
-    (commentsRes.data ?? []).forEach((row: any) => {
-      if (!row.profiles) return;
-      allNotifications.push({
-        id: `comment-${row.id}`,
-        type: "comment",
-        actor: row.profiles,
-        pin: row.pins,
-        created_at: row.created_at,
-        read: false,
-      });
-    });
+    setNotifications(formattedNotifications);
+    setUnreadCount(formattedNotifications.filter(n => !n.read).length);
+  }, [user]);
 
-    (followsRes.data ?? []).forEach((row: any) => {
-      if (!row.profiles) return;
-      allNotifications.push({
-        id: `follow-${row.follower_id}`,
-        type: "follow",
-        actor: row.profiles,
-        created_at: row.created_at,
-        read: false,
-      });
-    });
+  const markAsRead = useCallback(async (notificationId: string) => {
+    if (!user) return;
+    
+    // Optimistic update
+    setNotifications(prev => prev.map(n => 
+      n.id === notificationId ? { ...n, read: true } : n
+    ));
+    setUnreadCount(prev => Math.max(0, prev - 1));
 
-    allNotifications.sort(
-      (a, b) =>
-        new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
-    );
-
-    setNotifications(allNotifications.slice(0, 50));
-    setUnreadCount(allNotifications.length);
+    await supabase
+      .from("notifications")
+      .update({ read: true })
+      .eq("id", notificationId)
+      .eq("user_id", user.id);
   }, [user]);
 
   useEffect(() => {
@@ -100,22 +73,13 @@ export function useNotifications() {
       .forEach((c) => {
         supabase.removeChannel(c);
       });
+      
     // Realtime subscription
     const channel = supabase
       .channel(`notifications-${user.id}`)
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "likes" },
-        () => fetchNotifications(),
-      )
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "comments" },
-        () => fetchNotifications(),
-      )
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "follows" },
+        { event: "*", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` },
         () => fetchNotifications(),
       )
       .subscribe();
@@ -125,5 +89,5 @@ export function useNotifications() {
     };
   }, [user, fetchNotifications]);
 
-  return { notifications, unreadCount, isLoading, refresh: fetchNotifications };
+  return { notifications, unreadCount, isLoading, refresh: fetchNotifications, markAsRead };
 }

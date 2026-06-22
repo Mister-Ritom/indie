@@ -13,9 +13,12 @@ import type { Notification } from '@/types/database';
 export default function NotificationsScreen() {
   const { colors, spacing, typography, radius } = useTheme();
   const { showSidebar } = useBreakpoint();
-  const { notifications, isLoading, refresh } = useNotifications();
+  const { notifications, isLoading, refresh, markAsRead } = useNotifications();
 
   const handlePress = (notif: Notification) => {
+    if (!notif.read) {
+      markAsRead(notif.id);
+    }
     if (notif.type === 'follow') {
       router.push(`/user/${notif.actor.username}`);
     } else if (notif.pin) {

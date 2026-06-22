@@ -89,14 +89,20 @@ export function ProfileView({ userId, isCurrentUser }: ProfileViewProps) {
   }, [userId, activeTab]);
 
   const handleFollow = async () => {
-    if (!user || !profile) return;
+    if (!profile) return;
+    if (!user) {
+      alert("Please log in to follow users.");
+      return;
+    }
     const wasFollowing = profile.is_following;
     setProfile(p => p ? { ...p, is_following: !wasFollowing, followers_count: p.followers_count + (wasFollowing ? -1 : 1) } : null);
     
     if (wasFollowing) {
-      await supabase.from('follows').delete().eq('follower_id', user.id).eq('following_id', userId);
+      const { error } = await supabase.from('follows').delete().eq('follower_id', user.id).eq('following_id', userId);
+      if (error) console.error("Unfollow error:", error);
     } else {
-      await supabase.from('follows').insert({ follower_id: user.id, following_id: userId });
+      const { error } = await supabase.from('follows').insert({ follower_id: user.id, following_id: userId });
+      if (error) console.error("Follow error:", error);
     }
   };
 

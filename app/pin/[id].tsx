@@ -32,6 +32,7 @@ export default function PinDetailScreen() {
   const [isPostingComment, setIsPostingComment] = useState(false);
   const [showSavePicker, setShowSavePicker] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isFollowing, setIsFollowing] = useState(false);
   const hasViewedRef = useRef(false);
 
   useEffect(() => {
@@ -73,6 +74,17 @@ export default function PinDetailScreen() {
           supabase.from('pin_views').insert({ user_id: user.id, pin_id: id }).then();
         }
 
+        // Check follow status
+        if (user && data.user_id !== user.id) {
+          const { data: followData } = await supabase
+            .from('follows')
+            .select('follower_id')
+            .eq('follower_id', user.id)
+            .eq('following_id', data.user_id)
+            .single();
+          setIsFollowing(!!followData);
+        }
+
         // Fetch related pins (simplified: just matching same interest for now)
         if (data.interest_id) {
           const { data: relatedData } = await supabase
@@ -102,6 +114,24 @@ export default function PinDetailScreen() {
       await supabase.from('likes').delete().eq('user_id', user.id).eq('pin_id', pin.id);
     } else {
       await supabase.from('likes').insert({ user_id: user.id, pin_id: pin.id });
+    }
+  };
+
+  const handleFollow = async () => {
+    if (!pin) return;
+    if (!user) {
+      alert("Please log in to follow users.");
+      return;
+    }
+    const wasFollowing = isFollowing;
+    setIsFollowing(!wasFollowing);
+    
+    if (wasFollowing) {
+      const { error } = await supabase.from('follows').delete().eq('follower_id', user.id).eq('following_id', pin.user_id);
+      if (error) console.error("Unfollow error:", error);
+    } else {
+      const { error } = await supabase.from('follows').insert({ follower_id: user.id, following_id: pin.user_id });
+      if (error) console.error("Follow error:", error);
     }
   };
 
@@ -239,7 +269,14 @@ export default function PinDetailScreen() {
                   <Text style={{ fontFamily: typography.families.bodyMedium, fontSize: typography.scale.bodyLarge, color: colors.text }}>{pin.profile.full_name ?? pin.profile.username}</Text>
                   <Text style={{ fontFamily: typography.families.body, fontSize: typography.scale.body, color: colors.textSecondary }}>@{pin.profile.username}</Text>
                 </View>
-                <Button label="Follow" variant="secondary" size="sm" onPress={() => {}} />
+                {(!user || user.id !== pin.user_id) && (
+                  <Button 
+                    label={isFollowing ? "Following" : "Follow"} 
+                    variant={isFollowing ? "secondary" : "primary"} 
+                    size="sm" 
+                    onPress={handleFollow} 
+                  />
+                )}
               </TouchableOpacity>
 
               {/* Comments */}
