@@ -28,6 +28,7 @@ export interface Database {
           bio: string | null;
           website: string | null;
           onboarding_completed: boolean;
+          all_saves_private: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -39,6 +40,7 @@ export interface Database {
           bio?: string | null;
           website?: string | null;
           onboarding_completed?: boolean;
+          all_saves_private?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -50,6 +52,7 @@ export interface Database {
           bio?: string | null;
           website?: string | null;
           onboarding_completed?: boolean;
+          all_saves_private?: boolean;
           updated_at?: string;
         };
       };

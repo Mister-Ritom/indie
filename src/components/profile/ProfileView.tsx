@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Share, RefreshControl } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Share, RefreshControl, StyleSheet } from 'react-native';
+import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { Settings, Share as ShareIcon, Plus } from 'lucide-react-native';
 import { useTheme } from '@/hooks/useTheme';
@@ -26,6 +27,7 @@ export function ProfileView({ userId, isCurrentUser }: ProfileViewProps) {
   const [boards, setBoards] = useState<Board[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [recentSaves, setRecentSaves] = useState<string[]>([]);
 
   const fetchProfile = useCallback(async (background = false) => {
     if (!background) setIsLoading(true);
@@ -77,6 +79,32 @@ export function ProfileView({ userId, isCurrentUser }: ProfileViewProps) {
         .eq('user_id', userId)
         .order('created_at', { ascending: false });
       setBoards(data ?? []);
+
+      // Fetch recent saves for the "All Pins" card cover
+      const { data: savesData, error: savesError } = await supabase
+        .from('saves')
+        .select('pin:pin_id(id, assets:pin_assets(*))')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(4);
+        
+      if (savesError) {
+        console.error('Error fetching recent saves:', savesError);
+      }
+
+      if (savesData) {
+        // Supabase might return pin as an object or array depending on relation, ensure safe access
+        const urls = savesData
+          .map((s: any) => {
+            const pin = Array.isArray(s.pin) ? s.pin[0] : s.pin;
+            if (!pin || !pin.assets || pin.assets.length === 0) return null;
+            const thumb = pin.assets.find((a: any) => a.variant === 'thumb' || a.variant === '360');
+            return thumb ? thumb.url : pin.assets[0].url;
+          })
+          .filter(Boolean);
+        console.log('Fetched recent save URLs:', urls);
+        setRecentSaves(urls);
+      }
     }
   }, [userId, activeTab]);
 
@@ -201,6 +229,38 @@ export function ProfileView({ userId, isCurrentUser }: ProfileViewProps) {
           <MasonryGrid pins={pins} isLoading={isLoading} emptyMessage="No pins created yet." />
         ) : (
           <View style={{ paddingHorizontal: spacing.md, flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md }}>
+            {/* All Pins Card */}
+            {(isCurrentUser || !displayProfile.all_saves_private) && (
+              <TouchableOpacity
+                onPress={() => router.push(`/saved-pins?userId=${userId}`)}
+                style={{ width: '47%', aspectRatio: 1, backgroundColor: colors.surface, borderRadius: radius.lg, overflow: 'hidden' }}
+              >
+                {recentSaves.length > 0 && (
+                  <View style={{ ...StyleSheet.absoluteFillObject, flexDirection: 'row', flexWrap: 'wrap' }}>
+                    {recentSaves.map((url, i) => (
+                      <View 
+                        key={i}
+                        style={{ 
+                          width: recentSaves.length === 1 ? '100%' : '50%', 
+                          height: recentSaves.length <= 2 ? '100%' : '50%' 
+                        }}
+                      >
+                        <Image 
+                          source={{ uri: url }} 
+                          contentFit="cover"
+                          style={{ width: '100%', height: '100%' }} 
+                        />
+                      </View>
+                    ))}
+                    <View style={{ ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.3)' }} />
+                  </View>
+                )}
+                <View style={{ ...StyleSheet.absoluteFillObject, padding: spacing.md, justifyContent: 'flex-end', zIndex: 10, elevation: 10 }} pointerEvents="none">
+                  <Text style={{ fontFamily: typography.families.headingMedium, fontSize: typography.scale.bodyLarge, color: recentSaves.length > 0 ? '#fff' : colors.text }}>All Pins</Text>
+                </View>
+              </TouchableOpacity>
+            )}
+
             {/* Boards Grid */}
             {boards.map(board => (
               <TouchableOpacity
