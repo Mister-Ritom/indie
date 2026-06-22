@@ -150,8 +150,9 @@ function RootLayoutInner() {
         <Stack.Screen name="settings/index" options={{ presentation: 'card' }} />
         <Stack.Screen name="settings/edit-profile" options={{ presentation: 'card' }} />
         <Stack.Screen name="settings/manage-interests" options={{ presentation: 'card' }} />
-        <Stack.Screen name="legal/terms" options={{ presentation: 'card', headerShown: true, title: 'Terms of Service' }} />
-        <Stack.Screen name="legal/privacy" options={{ presentation: 'card', headerShown: true, title: 'Privacy Policy' }} />
+        <Stack.Screen name="search/users" options={{ presentation: 'card' }} />
+        <Stack.Screen name="legal/terms" options={{ presentation: 'card', headerShown: true, title: 'Terms of Service', headerStyle: { backgroundColor: colors.background }, headerTintColor: colors.text, headerShadowVisible: false }} />
+        <Stack.Screen name="legal/privacy" options={{ presentation: 'card', headerShown: true, title: 'Privacy Policy', headerStyle: { backgroundColor: colors.background }, headerTintColor: colors.text, headerShadowVisible: false }} />
         <Stack.Screen name="create/pin" options={{ presentation: 'fullScreenModal' }} />
         <Stack.Screen name="create/board" options={{ presentation: 'fullScreenModal' }} />
         <Stack.Screen name="+not-found" />

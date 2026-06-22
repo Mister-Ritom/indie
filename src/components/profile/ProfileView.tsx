@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Share } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, Share, RefreshControl } from 'react-native';
 import { router } from 'expo-router';
 import { Settings, Share as ShareIcon, Plus } from 'lucide-react-native';
 import { useTheme } from '@/hooks/useTheme';
@@ -25,68 +25,70 @@ export function ProfileView({ userId, isCurrentUser }: ProfileViewProps) {
   const [pins, setPins] = useState<FeedPin[]>([]);
   const [boards, setBoards] = useState<Board[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  useEffect(() => {
-    let isMounted = true;
-    const fetchProfile = async () => {
-      setIsLoading(true);
-      // Fetch profile with basic stats
-      const { data: p } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
-        
-      if (p) {
-        // Fetch counts (parallel)
-        const [pinsCount, followersCount, followingCount, boardsCount, isFollowing] = await Promise.all([
-          supabase.from('pins').select('id', { count: 'exact', head: true }).eq('user_id', userId),
-          supabase.from('follows').select('follower_id', { count: 'exact', head: true }).eq('following_id', userId),
-          supabase.from('follows').select('following_id', { count: 'exact', head: true }).eq('follower_id', userId),
-          supabase.from('boards').select('id', { count: 'exact', head: true }).eq('user_id', userId).eq('is_private', false),
-          user && !isCurrentUser ? supabase.from('follows').select('follower_id').eq('follower_id', user.id).eq('following_id', userId).single() : Promise.resolve({ data: null })
-        ]);
+  const fetchProfile = useCallback(async (background = false) => {
+    if (!background) setIsLoading(true);
+    // Fetch profile with basic stats
+    const { data: p } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single();
+      
+    if (p) {
+      // Fetch counts (parallel)
+      const [pinsCount, followersCount, followingCount, boardsCount, isFollowing] = await Promise.all([
+        supabase.from('pins').select('id', { count: 'exact', head: true }).eq('user_id', userId),
+        supabase.from('follows').select('follower_id', { count: 'exact', head: true }).eq('following_id', userId),
+        supabase.from('follows').select('following_id', { count: 'exact', head: true }).eq('follower_id', userId),
+        supabase.from('boards').select('id', { count: 'exact', head: true }).eq('user_id', userId).eq('is_private', false),
+        user && !isCurrentUser ? supabase.from('follows').select('follower_id').eq('follower_id', user.id).eq('following_id', userId).single() : Promise.resolve({ data: null })
+      ]);
 
-        if (isMounted) {
-          setProfile({
-            ...p,
-            pins_count: pinsCount.count ?? 0,
-            followers_count: followersCount.count ?? 0,
-            following_count: followingCount.count ?? 0,
-            boards_count: boardsCount.count ?? 0,
-            is_following: !!isFollowing.data
-          });
-        }
-      }
-      setIsLoading(false);
-    };
-
-    fetchProfile();
-    return () => { isMounted = false; };
+      setProfile({
+        ...p,
+        pins_count: pinsCount.count ?? 0,
+        followers_count: followersCount.count ?? 0,
+        following_count: followingCount.count ?? 0,
+        boards_count: boardsCount.count ?? 0,
+        is_following: !!isFollowing.data
+      });
+    }
+    if (!background) setIsLoading(false);
   }, [userId, user?.id, isCurrentUser]);
 
   useEffect(() => {
-    let isMounted = true;
-    const fetchContent = async () => {
-      if (activeTab === 'created') {
-        const { data } = await supabase
-          .from('pins')
-          .select('*, profile:user_id(id, username, avatar_url, full_name), assets:pin_assets(*)')
-          .eq('user_id', userId)
-          .order('created_at', { ascending: false });
-        if (isMounted) setPins(data ?? []);
-      } else {
-        const { data } = await supabase
-          .from('boards')
-          .select('*')
-          .eq('user_id', userId)
-          .order('created_at', { ascending: false });
-        if (isMounted) setBoards(data ?? []);
-      }
-    };
-    fetchContent();
-    return () => { isMounted = false; };
+    fetchProfile();
+  }, [fetchProfile]);
+
+  const fetchContent = useCallback(async () => {
+    if (activeTab === 'created') {
+      const { data } = await supabase
+        .from('pins')
+        .select('*, profile:user_id(id, username, avatar_url, full_name), assets:pin_assets(*)')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+      setPins(data ?? []);
+    } else {
+      const { data } = await supabase
+        .from('boards')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+      setBoards(data ?? []);
+    }
   }, [userId, activeTab]);
+
+  useEffect(() => {
+    fetchContent();
+  }, [fetchContent]);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await Promise.all([fetchProfile(true), fetchContent()]);
+    setIsRefreshing(false);
+  };
 
   const handleFollow = async () => {
     if (!profile) return;
@@ -112,34 +114,50 @@ export function ProfileView({ userId, isCurrentUser }: ProfileViewProps) {
     }
   };
 
+  const authProfile = useAuthStore(state => state.profile);
+
   if (!profile) return null;
 
+  // Use the global auth profile if this is the current user so edits show up instantly
+  const displayProfile = isCurrentUser && authProfile ? { ...profile, ...authProfile } : profile;
+
   return (
-    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: spacing.xxl }}>
+    <ScrollView 
+      showsVerticalScrollIndicator={false} 
+      contentContainerStyle={{ paddingBottom: spacing.xxl }}
+      refreshControl={
+        <RefreshControl
+          refreshing={isRefreshing}
+          onRefresh={handleRefresh}
+          tintColor={colors.primary}
+          colors={[colors.primary]}
+        />
+      }
+    >
       <View style={{ alignItems: 'center', padding: spacing.xl }}>
-        <Avatar uri={profile.avatar_url} name={profile.full_name ?? profile.username} size="xl" />
+        <Avatar uri={displayProfile.avatar_url} name={displayProfile.full_name ?? displayProfile.username} size="xl" />
         
         <Text style={{ fontFamily: typography.families.headingBold, fontSize: 28, color: colors.text, marginTop: spacing.md }}>
-          {profile.full_name ?? profile.username}
+          {displayProfile.full_name ?? displayProfile.username}
         </Text>
         
         <Text style={{ fontFamily: typography.families.body, fontSize: typography.scale.body, color: colors.textSecondary, marginTop: 4 }}>
-          @{profile.username}
+          @{displayProfile.username}
         </Text>
 
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginTop: spacing.sm }}>
           <Text style={{ fontFamily: typography.families.bodyMedium, fontSize: typography.scale.body, color: colors.text }}>
-            {formatCount(profile.followers_count)} <Text style={{ color: colors.textSecondary, fontFamily: typography.families.body }}>followers</Text>
+            {formatCount(displayProfile.followers_count)} <Text style={{ color: colors.textSecondary, fontFamily: typography.families.body }}>followers</Text>
           </Text>
           <Text style={{ fontFamily: typography.families.bodyMedium, fontSize: typography.scale.body, color: colors.textSecondary }}>·</Text>
           <Text style={{ fontFamily: typography.families.bodyMedium, fontSize: typography.scale.body, color: colors.text }}>
-            {formatCount(profile.following_count)} <Text style={{ color: colors.textSecondary, fontFamily: typography.families.body }}>following</Text>
+            {formatCount(displayProfile.following_count)} <Text style={{ color: colors.textSecondary, fontFamily: typography.families.body }}>following</Text>
           </Text>
         </View>
 
-        {profile.bio && (
+        {displayProfile.bio && (
           <Text style={{ fontFamily: typography.families.body, fontSize: typography.scale.body, color: colors.text, textAlign: 'center', marginTop: spacing.md, maxWidth: 400 }}>
-            {profile.bio}
+            {displayProfile.bio}
           </Text>
         )}
 

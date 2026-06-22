@@ -4,25 +4,18 @@
     "slug": "indie",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/indie.png",
     "scheme": "me.ritom.indie",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#E60023"
-    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "me.ritom.indie"
     },
     "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/android-icon-monochrome.png",
-        "backgroundColor": "#E60023"
-      },
-      "package": "me.ritom.indie"
+      "package": "me.ritom.indie",
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -47,11 +40,30 @@
       ],
       "expo-status-bar",
       "expo-web-browser",
-      "expo-splash-screen",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#FFFFFF",
+          "image": "./assets/indie.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "dark": {
+            "backgroundColor": "#111111",
+            "image": "./assets/indie.png"
+          }
+        }
+      ],
       "expo-image"
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "61931d90-c63d-46a3-8b9e-13e2283aa2b2"
+      }
+    },
+    "owner": "ritomg"
   }
 }

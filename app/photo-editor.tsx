@@ -4,20 +4,58 @@
  * Full-screen Pinterest-style photo editor screen.
  */
 
-import React, { useState, useRef, useCallback, useMemo, useEffect } from "react";
+import React, {
+  useState,
+  useRef,
+  useCallback,
+  useMemo,
+  useEffect,
+} from "react";
 import {
-  View, Text, Platform, StyleSheet, TouchableOpacity, TextInput,
-  ScrollView, Dimensions, StatusBar, KeyboardAvoidingView, Keyboard
+  View,
+  Text,
+  Platform,
+  StyleSheet,
+  TouchableOpacity,
+  TextInput,
+  ScrollView,
+  Dimensions,
+  StatusBar,
+  KeyboardAvoidingView,
+  Keyboard,
 } from "react-native";
 import {
-  X, HelpCircle, Crop, Image as ImageIcon, Type, Star, Paintbrush,
-  AlignLeft, AlignCenter, AlignRight, Bold, Pipette, Undo2,
-  Highlighter, PenLine, Pen, Eraser, Trash2
+  X,
+  HelpCircle,
+  Crop,
+  Image as ImageIcon,
+  Type,
+  Star,
+  Paintbrush,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  Bold,
+  Pipette,
+  Undo2,
+  Highlighter,
+  PenLine,
+  Pen,
+  Eraser,
+  Trash2,
 } from "lucide-react-native";
 
 import { router } from "expo-router";
-import Animated, { useSharedValue, useAnimatedStyle, runOnJS } from "react-native-reanimated";
-import { GestureDetector, Gesture, GestureHandlerRootView } from "react-native-gesture-handler";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  runOnJS,
+} from "react-native-reanimated";
+import {
+  GestureDetector,
+  Gesture,
+  GestureHandlerRootView,
+} from "react-native-gesture-handler";
 import Constants, { ExecutionEnvironment } from "expo-constants";
 import { captureRef } from "react-native-view-shot";
 
@@ -25,10 +63,22 @@ import { useTheme } from "@/hooks/useTheme";
 import { useEditorStore } from "@/stores/editorStore";
 import { ImageCropModal } from "@/components/ui/ImageCropModal";
 import {
-  COLOR_PALETTE, BRUSH_CONFIGS, STICKER_ROWS, DEFAULT_DRAW_COLOR,
-  EDITOR_BG, TOOLBAR_BG, PILL_DONE_BG, PILL_GRAY_BG
+  COLOR_PALETTE,
+  BRUSH_CONFIGS,
+  STICKER_ROWS,
+  DEFAULT_DRAW_COLOR,
+  EDITOR_BG,
+  TOOLBAR_BG,
+  PILL_DONE_BG,
+  PILL_GRAY_BG,
 } from "@/components/ui/editor/editorConstants";
-import type { DrawPath, TextLayer, StickerLayer, EditorTool, BrushType } from "@/components/ui/editor/editorTypes";
+import type {
+  DrawPath,
+  TextLayer,
+  StickerLayer,
+  EditorTool,
+  BrushType,
+} from "@/components/ui/editor/editorTypes";
 
 const isExpoGo =
   Platform.OS !== "web" &&
@@ -40,7 +90,8 @@ let SkiaEditorCanvasComponent:
   | typeof import("@/components/ui/editor/SkiaEditorCanvas").SkiaEditorCanvas
   | null = null;
 if (!isExpoGo) {
-  SkiaEditorCanvasComponent = require("@/components/ui/editor/SkiaEditorCanvas").SkiaEditorCanvas;
+  SkiaEditorCanvasComponent =
+    require("@/components/ui/editor/SkiaEditorCanvas").SkiaEditorCanvas;
 }
 
 let _idCounter = 0;
@@ -49,19 +100,30 @@ const uid = () => `${Date.now()}_${_idCounter++}`;
 function ColorSheet({ visible, selected, onSelect, onClose }: any) {
   if (!visible) return null;
   return (
-    <TouchableOpacity style={[StyleSheet.absoluteFill, { zIndex: 100 }]} activeOpacity={1} onPress={onClose}>
+    <TouchableOpacity
+      style={[StyleSheet.absoluteFill, { zIndex: 100 }]}
+      activeOpacity={1}
+      onPress={onClose}
+    >
       <View style={cs.sheet} pointerEvents="box-none">
         <TouchableOpacity activeOpacity={1} onPress={() => {}}>
           <View style={cs.grid}>
             <View style={cs.row}>
-              <TouchableOpacity style={[cs.swatch, cs.eyedropper]} onPress={onClose}>
+              <TouchableOpacity
+                style={[cs.swatch, cs.eyedropper]}
+                onPress={onClose}
+              >
                 <Pipette size={20} color="#fff" />
               </TouchableOpacity>
               {COLOR_PALETTE.slice(0, 6).map((c) => (
                 <TouchableOpacity
                   key={c}
                   onPress={() => onSelect(c)}
-                  style={[cs.swatch, { backgroundColor: c }, selected === c && cs.swatchSelected]}
+                  style={[
+                    cs.swatch,
+                    { backgroundColor: c },
+                    selected === c && cs.swatchSelected,
+                  ]}
                 />
               ))}
             </View>
@@ -71,7 +133,11 @@ function ColorSheet({ visible, selected, onSelect, onClose }: any) {
                   <TouchableOpacity
                     key={c}
                     onPress={() => onSelect(c)}
-                    style={[cs.swatch, { backgroundColor: c }, selected === c && cs.swatchSelected]}
+                    style={[
+                      cs.swatch,
+                      { backgroundColor: c },
+                      selected === c && cs.swatchSelected,
+                    ]}
                   />
                 ))}
               </View>
@@ -84,18 +150,43 @@ function ColorSheet({ visible, selected, onSelect, onClose }: any) {
 }
 
 const cs = StyleSheet.create({
-  sheet: { position: "absolute", bottom: 0, left: 0, right: 0, backgroundColor: "rgba(28,28,28,0.98)", borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingTop: 12, paddingBottom: Platform.OS === "ios" ? 36 : 24, paddingHorizontal: 12 },
+  sheet: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: "rgba(28,28,28,0.98)",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingTop: 12,
+    paddingBottom: Platform.OS === "ios" ? 36 : 24,
+    paddingHorizontal: 12,
+  },
   grid: { gap: 8 },
   row: { flexDirection: "row", gap: 8, justifyContent: "center" },
-  swatch: { width: 42, height: 42, borderRadius: 21, borderWidth: 1.5, borderColor: "rgba(255,255,255,0.1)" },
+  swatch: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    borderWidth: 1.5,
+    borderColor: "rgba(255,255,255,0.1)",
+  },
   swatchSelected: { borderWidth: 3, borderColor: "#fff" },
-  eyedropper: { backgroundColor: "rgba(255,255,255,0.12)", alignItems: "center", justifyContent: "center" },
+  eyedropper: {
+    backgroundColor: "rgba(255,255,255,0.12)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
 });
 
 function StickerSheet({ visible, onSelect, onClose }: any) {
   if (!visible) return null;
   return (
-    <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose}>
+    <TouchableOpacity
+      style={StyleSheet.absoluteFill}
+      activeOpacity={1}
+      onPress={onClose}
+    >
       <View style={ss.sheet} pointerEvents="box-none">
         <TouchableOpacity activeOpacity={1} onPress={() => {}}>
           <Text style={ss.heading}>Stickers</Text>
@@ -103,7 +194,14 @@ function StickerSheet({ visible, onSelect, onClose }: any) {
             {STICKER_ROWS.map((row, ri) => (
               <View key={ri} style={ss.row}>
                 {row.map((emoji) => (
-                  <TouchableOpacity key={emoji} onPress={() => { onSelect(emoji); onClose(); }} style={ss.emojiBtn}>
+                  <TouchableOpacity
+                    key={emoji}
+                    onPress={() => {
+                      onSelect(emoji);
+                      onClose();
+                    }}
+                    style={ss.emojiBtn}
+                  >
                     <Text style={ss.emoji}>{emoji}</Text>
                   </TouchableOpacity>
                 ))}
@@ -117,9 +215,31 @@ function StickerSheet({ visible, onSelect, onClose }: any) {
 }
 
 const ss = StyleSheet.create({
-  sheet: { position: "absolute", bottom: 0, left: 0, right: 0, backgroundColor: "rgba(28,28,28,0.98)", borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingTop: 16, paddingBottom: Platform.OS === "ios" ? 36 : 24, paddingHorizontal: 16, maxHeight: SH * 0.55 },
-  heading: { color: "#fff", fontSize: 16, fontWeight: "700", textAlign: "center", marginBottom: 12 },
-  row: { flexDirection: "row", justifyContent: "space-evenly", marginBottom: 8 },
+  sheet: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: "rgba(28,28,28,0.98)",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingTop: 16,
+    paddingBottom: Platform.OS === "ios" ? 36 : 24,
+    paddingHorizontal: 16,
+    maxHeight: SH * 0.55,
+  },
+  heading: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "700",
+    textAlign: "center",
+    marginBottom: 12,
+  },
+  row: {
+    flexDirection: "row",
+    justifyContent: "space-evenly",
+    marginBottom: 8,
+  },
   emojiBtn: { padding: 6, borderRadius: 10 },
   emoji: { fontSize: 34 },
 });
@@ -132,7 +252,13 @@ const BRUSH_ICON_COMPONENTS: Record<string, React.FC<any>> = {
   eraser: Eraser,
 };
 
-function DrawToolbar({ activeBrush, brushColor, onBrushChange, onColorPress, onUndo }: any) {
+function DrawToolbar({
+  activeBrush,
+  brushColor,
+  onBrushChange,
+  onColorPress,
+  onUndo,
+}: any) {
   return (
     <View style={dt.container}>
       <TouchableOpacity onPress={onUndo} style={dt.undoBtn}>
@@ -142,8 +268,16 @@ function DrawToolbar({ activeBrush, brushColor, onBrushChange, onColorPress, onU
         const IconComp = BRUSH_ICON_COMPONENTS[cfg.type] ?? Pen;
         const isActive = activeBrush === cfg.type;
         return (
-          <TouchableOpacity key={cfg.type} onPress={() => onBrushChange(cfg.type)} style={dt.brushBtn}>
-            <IconComp size={24} color={isActive ? '#fff' : 'rgba(255,255,255,0.45)'} strokeWidth={isActive ? 2.5 : 1.5} />
+          <TouchableOpacity
+            key={cfg.type}
+            onPress={() => onBrushChange(cfg.type)}
+            style={dt.brushBtn}
+          >
+            <IconComp
+              size={24}
+              color={isActive ? "#fff" : "rgba(255,255,255,0.45)"}
+              strokeWidth={isActive ? 2.5 : 1.5}
+            />
             {isActive && <View style={dt.brushUnderline} />}
           </TouchableOpacity>
         );
@@ -156,28 +290,78 @@ function DrawToolbar({ activeBrush, brushColor, onBrushChange, onColorPress, onU
 }
 
 const dt = StyleSheet.create({
-  container: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 20, paddingVertical: 12, backgroundColor: TOOLBAR_BG },
-  undoBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: "rgba(255,255,255,0.15)", alignItems: "center", justifyContent: "center" },
-  brushBtn: { alignItems: "center", justifyContent: "center", paddingBottom: 4, minWidth: 36 },
-  brushUnderline: { height: 2, width: 24, backgroundColor: "#fff", borderRadius: 1, marginTop: 3 },
-  colorBtn: { width: 36, height: 36, borderRadius: 18, borderWidth: 2, borderColor: "#fff", overflow: "hidden" },
+  container: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    backgroundColor: TOOLBAR_BG,
+  },
+  undoBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  brushBtn: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingBottom: 4,
+    minWidth: 36,
+  },
+  brushUnderline: {
+    height: 2,
+    width: 24,
+    backgroundColor: "#fff",
+    borderRadius: 1,
+    marginTop: 3,
+  },
+  colorBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 2,
+    borderColor: "#fff",
+    overflow: "hidden",
+  },
   colorCircle: { flex: 1 },
 });
 
-function TextControlsBar({ align, bgStyle, color, bold, onAlignToggle, onBgToggle, onBoldToggle, onColorPress }: any) {
-  const AlignIcon = align === 'left' ? AlignLeft : align === 'right' ? AlignRight : AlignCenter;
-  const bgIsActive = bgStyle === 'solid';
+function TextControlsBar({
+  align,
+  bgStyle,
+  color,
+  bold,
+  onAlignToggle,
+  onBgToggle,
+  onBoldToggle,
+  onColorPress,
+}: any) {
+  const AlignIcon =
+    align === "left" ? AlignLeft : align === "right" ? AlignRight : AlignCenter;
+  const bgIsActive = bgStyle === "solid";
   const boldIsActive = bold;
   return (
     <View style={tcb.bar}>
-      <TouchableOpacity onPress={onBgToggle} style={[tcb.btn, bgIsActive && tcb.btnActive]}>
-        <View style={[tcb.bgCircle, bgIsActive && { backgroundColor: '#111' }]} />
+      <TouchableOpacity
+        onPress={onBgToggle}
+        style={[tcb.btn, bgIsActive && tcb.btnActive]}
+      >
+        <View
+          style={[tcb.bgCircle, bgIsActive && { backgroundColor: "#111" }]}
+        />
       </TouchableOpacity>
       <TouchableOpacity onPress={onAlignToggle} style={tcb.btn}>
         <AlignIcon size={20} color="#fff" />
       </TouchableOpacity>
-      <TouchableOpacity onPress={onBoldToggle} style={[tcb.btn, boldIsActive && tcb.btnActive]}>
-        <Bold size={20} color={boldIsActive ? '#111' : '#fff'} />
+      <TouchableOpacity
+        onPress={onBoldToggle}
+        style={[tcb.btn, boldIsActive && tcb.btnActive]}
+      >
+        <Bold size={20} color={boldIsActive ? "#111" : "#fff"} />
       </TouchableOpacity>
       <TouchableOpacity onPress={onColorPress} style={tcb.colorBtn}>
         <View style={[tcb.colorDot, { backgroundColor: color }]} />
@@ -187,15 +371,53 @@ function TextControlsBar({ align, bgStyle, color, bold, onAlignToggle, onBgToggl
 }
 
 const tcb = StyleSheet.create({
-  bar: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 12, paddingVertical: 8, backgroundColor: "rgba(30,30,30,0.92)", borderRadius: 32 },
-  btn: { width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.15)", alignItems: "center", justifyContent: "center" },
+  bar: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: "rgba(30,30,30,0.92)",
+    borderRadius: 32,
+  },
+  btn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
   btnActive: { backgroundColor: "#fff" },
-  bgCircle: { width: 20, height: 20, borderRadius: 10, backgroundColor: "#fff" },
-  colorBtn: { width: 36, height: 36, borderRadius: 18, borderWidth: 2.5, borderColor: "#fff", overflow: "hidden" },
+  bgCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: "#fff",
+  },
+  colorBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 2.5,
+    borderColor: "#fff",
+    overflow: "hidden",
+  },
   colorDot: { flex: 1 },
 });
 
-function DraggableText({ layer, isActive, isExporting, globalScale, globalRotation, globalPinchRef, globalRotateRef, onUpdatePosition, onSelect, onDelete }: any) {
+function DraggableText({
+  layer,
+  isActive,
+  isExporting,
+  globalScale,
+  globalRotation,
+  globalPinchRef,
+  globalRotateRef,
+  onUpdatePosition,
+  onSelect,
+  onDelete,
+}: any) {
   const { colors } = useTheme();
   const transX = useSharedValue(layer.x);
   const transY = useSharedValue(layer.y);
@@ -207,21 +429,36 @@ function DraggableText({ layer, isActive, isExporting, globalScale, globalRotati
     }
   }, [isActive]);
 
-  const pan = useMemo(() => Gesture.Pan()
-    .minDistance(5)
-    .simultaneousWithExternalGesture(globalPinchRef, globalRotateRef)
-    .onStart(() => { runOnJS(onSelect)(layer.id, false); })
-    .onChange((e) => { transX.value += e.changeX; transY.value += e.changeY; })
-    .onEnd(() => { runOnJS(onUpdatePosition)(layer.id, transX.value, transY.value); }),
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  [globalPinchRef, globalRotateRef]);
+  const pan = useMemo(
+    () =>
+      Gesture.Pan()
+        .minDistance(5)
+        .simultaneousWithExternalGesture(globalPinchRef, globalRotateRef)
+        .onStart(() => {
+          runOnJS(onSelect)(layer.id, false);
+        })
+        .onChange((e) => {
+          transX.value += e.changeX;
+          transY.value += e.changeY;
+        })
+        .onEnd(() => {
+          runOnJS(onUpdatePosition)(layer.id, transX.value, transY.value);
+        }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [globalPinchRef, globalRotateRef],
+  );
 
-  const tap = useMemo(() => Gesture.Tap()
-    .maxDuration(250)
-    .simultaneousWithExternalGesture(globalPinchRef, globalRotateRef)
-    .onEnd(() => { runOnJS(onSelect)(layer.id, true); }),
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  [globalPinchRef, globalRotateRef]);
+  const tap = useMemo(
+    () =>
+      Gesture.Tap()
+        .maxDuration(250)
+        .simultaneousWithExternalGesture(globalPinchRef, globalRotateRef)
+        .onEnd(() => {
+          runOnJS(onSelect)(layer.id, true);
+        }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [globalPinchRef, globalRotateRef],
+  );
 
   const composed = useMemo(() => Gesture.Exclusive(pan, tap), [pan, tap]);
 
@@ -233,8 +470,10 @@ function DraggableText({ layer, isActive, isExporting, globalScale, globalRotati
     if (layer.align === "center") textX = transX.value - estimatedWidth / 2;
     if (layer.align === "right") textX = transX.value - estimatedWidth;
 
-    const currentScale = isActive ? globalScale.value : (layer.scale || 1);
-    const currentRotation = isActive ? globalRotation.value : (layer.rotation || 0);
+    const currentScale = isActive ? globalScale.value : layer.scale || 1;
+    const currentRotation = isActive
+      ? globalRotation.value
+      : layer.rotation || 0;
 
     return {
       position: "absolute",
@@ -242,16 +481,24 @@ function DraggableText({ layer, isActive, isExporting, globalScale, globalRotati
       top: transY.value - estimatedHeight - 16,
       transform: [
         { scale: currentScale },
-        { rotateZ: `${currentRotation}rad` }
+        { rotateZ: `${currentRotation}rad` },
       ],
-      opacity: isExporting && Platform.OS === 'web' ? 0 : 1,
+      opacity: isExporting && Platform.OS === "web" ? 0 : 1,
     };
   });
 
   return (
     <GestureDetector gesture={composed}>
       <Animated.View style={animatedStyle}>
-        <View style={{ padding: 16, borderWidth: isActive ? 1.5 : 0, borderColor: "rgba(255,255,255,0.8)", borderStyle: "dashed", borderRadius: 8 }}>
+        <View
+          style={{
+            padding: 16,
+            borderWidth: isActive ? 1.5 : 0,
+            borderColor: "rgba(255,255,255,0.8)",
+            borderStyle: "dashed",
+            borderRadius: 8,
+          }}
+        >
           <Text
             style={[
               styles.textOverlayText,
@@ -260,7 +507,8 @@ function DraggableText({ layer, isActive, isExporting, globalScale, globalRotati
                 fontSize: layer.fontSize,
                 fontWeight: layer.bold ? "700" : "400",
                 textAlign: layer.align,
-                backgroundColor: layer.bgStyle === "solid" ? "rgba(0,0,0,0.5)" : "transparent",
+                backgroundColor:
+                  layer.bgStyle === "solid" ? "rgba(0,0,0,0.5)" : "transparent",
               },
             ]}
           >
@@ -268,7 +516,23 @@ function DraggableText({ layer, isActive, isExporting, globalScale, globalRotati
           </Text>
         </View>
         {isActive && (
-          <TouchableOpacity onPress={() => onDelete(layer.id)} style={{ position: 'absolute', top: -12, left: -12, backgroundColor: 'rgba(20,20,20,0.8)', borderRadius: 16, width: 32, height: 32, alignItems: 'center', justifyContent: 'center', zIndex: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' }}>
+          <TouchableOpacity
+            onPress={() => onDelete(layer.id)}
+            style={{
+              position: "absolute",
+              top: -12,
+              left: -12,
+              backgroundColor: "rgba(20,20,20,0.8)",
+              borderRadius: 16,
+              width: 32,
+              height: 32,
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 10,
+              borderWidth: 1,
+              borderColor: "rgba(255,255,255,0.2)",
+            }}
+          >
             <Trash2 size={16} color={colors.error} strokeWidth={2} />
           </TouchableOpacity>
         )}
@@ -277,7 +541,18 @@ function DraggableText({ layer, isActive, isExporting, globalScale, globalRotati
   );
 }
 
-function DraggableSticker({ layer, isActive, isExporting, globalScale, globalRotation, globalPinchRef, globalRotateRef, onUpdateLayer, onSelect, onDelete }: any) {
+function DraggableSticker({
+  layer,
+  isActive,
+  isExporting,
+  globalScale,
+  globalRotation,
+  globalPinchRef,
+  globalRotateRef,
+  onUpdateLayer,
+  onSelect,
+  onDelete,
+}: any) {
   const { colors } = useTheme();
   const transX = useSharedValue(layer.x);
   const transY = useSharedValue(layer.y);
@@ -289,27 +564,44 @@ function DraggableSticker({ layer, isActive, isExporting, globalScale, globalRot
     }
   }, [isActive]);
 
-  const pan = useMemo(() => Gesture.Pan()
-    .minDistance(5)
-    .simultaneousWithExternalGesture(globalPinchRef, globalRotateRef)
-    .onStart(() => { runOnJS(onSelect)(layer.id, false); })
-    .onChange((e) => { transX.value += e.changeX; transY.value += e.changeY; })
-    .onEnd(() => { runOnJS(onUpdateLayer)(layer.id, transX.value, transY.value); }),
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  [globalPinchRef, globalRotateRef]);
+  const pan = useMemo(
+    () =>
+      Gesture.Pan()
+        .minDistance(5)
+        .simultaneousWithExternalGesture(globalPinchRef, globalRotateRef)
+        .onStart(() => {
+          runOnJS(onSelect)(layer.id, false);
+        })
+        .onChange((e) => {
+          transX.value += e.changeX;
+          transY.value += e.changeY;
+        })
+        .onEnd(() => {
+          runOnJS(onUpdateLayer)(layer.id, transX.value, transY.value);
+        }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [globalPinchRef, globalRotateRef],
+  );
 
-  const tap = useMemo(() => Gesture.Tap()
-    .maxDuration(250)
-    .simultaneousWithExternalGesture(globalPinchRef, globalRotateRef)
-    .onEnd(() => { runOnJS(onSelect)(layer.id, true); }),
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  [globalPinchRef, globalRotateRef]);
+  const tap = useMemo(
+    () =>
+      Gesture.Tap()
+        .maxDuration(250)
+        .simultaneousWithExternalGesture(globalPinchRef, globalRotateRef)
+        .onEnd(() => {
+          runOnJS(onSelect)(layer.id, true);
+        }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [globalPinchRef, globalRotateRef],
+  );
 
   const composed = useMemo(() => Gesture.Exclusive(pan, tap), [pan, tap]);
 
   const animatedStyle = useAnimatedStyle(() => {
-    const currentScale = isActive ? globalScale.value : (layer.scale || 1);
-    const currentRotation = isActive ? globalRotation.value : (layer.rotation || 0);
+    const currentScale = isActive ? globalScale.value : layer.scale || 1;
+    const currentRotation = isActive
+      ? globalRotation.value
+      : layer.rotation || 0;
 
     return {
       position: "absolute",
@@ -317,20 +609,44 @@ function DraggableSticker({ layer, isActive, isExporting, globalScale, globalRot
       top: transY.value - 40 - 16,
       transform: [
         { scale: currentScale },
-        { rotateZ: `${currentRotation}rad` }
+        { rotateZ: `${currentRotation}rad` },
       ],
-      opacity: isExporting && Platform.OS === 'web' ? 0 : 1,
+      opacity: isExporting && Platform.OS === "web" ? 0 : 1,
     };
   });
 
   return (
     <GestureDetector gesture={composed}>
       <Animated.View style={animatedStyle}>
-        <View style={{ padding: 16, borderWidth: isActive ? 1.5 : 0, borderColor: "rgba(255,255,255,0.8)", borderStyle: "dashed", borderRadius: 8 }}>
+        <View
+          style={{
+            padding: 16,
+            borderWidth: isActive ? 1.5 : 0,
+            borderColor: "rgba(255,255,255,0.8)",
+            borderStyle: "dashed",
+            borderRadius: 8,
+          }}
+        >
           <Text style={styles.stickerEmoji}>{layer.emoji}</Text>
         </View>
         {isActive && (
-          <TouchableOpacity onPress={() => onDelete(layer.id)} style={{ position: 'absolute', top: -12, left: -12, backgroundColor: 'rgba(20,20,20,0.8)', borderRadius: 16, width: 32, height: 32, alignItems: 'center', justifyContent: 'center', zIndex: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' }}>
+          <TouchableOpacity
+            onPress={() => onDelete(layer.id)}
+            style={{
+              position: "absolute",
+              top: -12,
+              left: -12,
+              backgroundColor: "rgba(20,20,20,0.8)",
+              borderRadius: 16,
+              width: 32,
+              height: 32,
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 10,
+              borderWidth: 1,
+              borderColor: "rgba(255,255,255,0.2)",
+            }}
+          >
             <Trash2 size={16} color={colors.error} strokeWidth={2} />
           </TouchableOpacity>
         )}
@@ -340,7 +656,12 @@ function DraggableSticker({ layer, isActive, isExporting, globalScale, globalRot
 }
 
 export default function PhotoEditorScreen() {
-  const { originalUri: imageUri, imageWidth, imageHeight, setEditedImage } = useEditorStore();
+  const {
+    originalUri: imageUri,
+    imageWidth,
+    imageHeight,
+    setEditedImage,
+  } = useEditorStore();
 
   const [activeTool, setActiveTool] = useState<EditorTool>("none");
   const [showCrop, setShowCrop] = useState(false);
@@ -357,7 +678,9 @@ export default function PhotoEditorScreen() {
   const [editingText, setEditingText] = useState("");
   const [textColor, setTextColor] = useState("#FFFFFF");
   const [textBold, setTextBold] = useState(false);
-  const [textAlign, setTextAlign] = useState<"left" | "center" | "right">("center");
+  const [textAlign, setTextAlign] = useState<"left" | "center" | "right">(
+    "center",
+  );
   const [textBgStyle, setTextBgStyle] = useState<"none" | "solid">("none");
 
   const [stickerLayers, setStickerLayers] = useState<StickerLayer[]>([]);
@@ -369,7 +692,8 @@ export default function PhotoEditorScreen() {
   const { canvasWidth, canvasHeight } = useMemo(() => {
     const maxWidth = SW;
     const maxHeight = SH * 0.75;
-    if (!imageWidth || !imageHeight) return { canvasWidth: SW, canvasHeight: Math.round(SW * (4 / 3)) };
+    if (!imageWidth || !imageHeight)
+      return { canvasWidth: SW, canvasHeight: Math.round(SW * (4 / 3)) };
     const aspect = imageWidth / imageHeight;
     let w = maxWidth;
     let h = w / aspect;
@@ -387,31 +711,55 @@ export default function PhotoEditorScreen() {
 
   const saveActiveTransform = useCallback(() => {
     if (!activeLayerId) return;
-    setTextLayers(prev => prev.map(l => l.id === activeLayerId ? { ...l, scale: globalScale.value, rotation: globalRotation.value } : l));
-    setStickerLayers(prev => prev.map(l => l.id === activeLayerId ? { ...l, scale: globalScale.value, rotation: globalRotation.value } : l));
+    setTextLayers((prev) =>
+      prev.map((l) =>
+        l.id === activeLayerId
+          ? { ...l, scale: globalScale.value, rotation: globalRotation.value }
+          : l,
+      ),
+    );
+    setStickerLayers((prev) =>
+      prev.map((l) =>
+        l.id === activeLayerId
+          ? { ...l, scale: globalScale.value, rotation: globalRotation.value }
+          : l,
+      ),
+    );
   }, [activeLayerId]);
 
   // Store as stable refs so the gesture object identity never changes across renders.
   // This is required for simultaneousWithExternalGesture to work in child GestureDetectors.
   const globalPinchRef = useRef(
     Gesture.Pinch()
-      .onStart(() => { savedGlobalScale.value = globalScale.value; })
-      .onUpdate((e) => { globalScale.value = savedGlobalScale.value * e.scale; })
-      .onEnd(() => { runOnJS(saveActiveTransform)(); })
+      .onStart(() => {
+        savedGlobalScale.value = globalScale.value;
+      })
+      .onUpdate((e) => {
+        globalScale.value = savedGlobalScale.value * e.scale;
+      })
+      .onEnd(() => {
+        runOnJS(saveActiveTransform)();
+      }),
   ).current;
 
   const globalRotateRef = useRef(
     Gesture.Rotation()
-      .onStart(() => { savedGlobalRotation.value = globalRotation.value; })
-      .onUpdate((e) => { globalRotation.value = savedGlobalRotation.value + e.rotation; })
-      .onEnd(() => { runOnJS(saveActiveTransform)(); })
+      .onStart(() => {
+        savedGlobalRotation.value = globalRotation.value;
+      })
+      .onUpdate((e) => {
+        globalRotation.value = savedGlobalRotation.value + e.rotation;
+      })
+      .onEnd(() => {
+        runOnJS(saveActiveTransform)();
+      }),
   ).current;
 
   // Global pinch + rotate live on the outermost wrapper so one finger
   // can be anywhere on screen while the other is over the active layer.
   const globalTransformGesture = useMemo(
     () => Gesture.Simultaneous(globalPinchRef, globalRotateRef),
-    [globalPinchRef, globalRotateRef]
+    [globalPinchRef, globalRotateRef],
   );
 
   useEffect(() => {
@@ -421,9 +769,15 @@ export default function PhotoEditorScreen() {
   }, [imageUri, currentUri]);
 
   const captureViewRef = useRef<View>(null);
-  const canvasRef = useRef<import("@/components/ui/editor/SkiaEditorCanvas").SkiaEditorCanvasHandle>(null);
+  const canvasRef =
+    useRef<
+      import("@/components/ui/editor/SkiaEditorCanvas").SkiaEditorCanvasHandle
+    >(null);
 
-  const brushConfig = useMemo(() => BRUSH_CONFIGS.find((b) => b.type === activeBrush)!, [activeBrush]);
+  const brushConfig = useMemo(
+    () => BRUSH_CONFIGS.find((b) => b.type === activeBrush)!,
+    [activeBrush],
+  );
 
   const drawGesture = useMemo(
     () =>
@@ -459,11 +813,16 @@ export default function PhotoEditorScreen() {
         .onEnd(() => {
           currentPathRef.current = null;
         }),
-    [activeTool, brushColor, brushConfig, activeBrush]
+    [activeTool, brushColor, brushConfig, activeBrush],
   );
 
-  const canvasBackgroundTap = useMemo(() => Gesture.Tap()
-    .onEnd(() => { runOnJS(setActiveLayerId)(null); }), []);
+  const canvasBackgroundTap = useMemo(
+    () =>
+      Gesture.Tap().onEnd(() => {
+        runOnJS(setActiveLayerId)(null);
+      }),
+    [],
+  );
 
   // canvasGestures must be declared AFTER drawGesture (used as a dep)
   const canvasGestures = useMemo(() => {
@@ -482,9 +841,16 @@ export default function PhotoEditorScreen() {
       setTextLayers((prev) =>
         prev.map((l) =>
           l.id === editingLayerId
-            ? { ...l, text: editingText.trim(), color: textColor, bold: textBold, align: textAlign, bgStyle: textBgStyle }
-            : l
-        )
+            ? {
+                ...l,
+                text: editingText.trim(),
+                color: textColor,
+                bold: textBold,
+                align: textAlign,
+                bgStyle: textBgStyle,
+              }
+            : l,
+        ),
       );
       setActiveLayerId(editingLayerId);
       setEditingLayerId(null);
@@ -507,7 +873,16 @@ export default function PhotoEditorScreen() {
     }
     setEditingText("");
     setActiveTool("none");
-  }, [editingText, editingLayerId, textColor, textBold, textAlign, textBgStyle, canvasWidth, canvasHeight]);
+  }, [
+    editingText,
+    editingLayerId,
+    textColor,
+    textBold,
+    textAlign,
+    textBgStyle,
+    canvasWidth,
+    canvasHeight,
+  ]);
 
   const handleToolCancel = useCallback(() => {
     if (activeTool === "draw") {
@@ -528,17 +903,31 @@ export default function PhotoEditorScreen() {
   }, [activeTool, addTextLayer]);
 
   const updateTextPosition = useCallback((id: string, x: number, y: number) => {
-    setTextLayers((prev) => prev.map((l) => (l.id === id ? { ...l, x, y } : l)));
+    setTextLayers((prev) =>
+      prev.map((l) => (l.id === id ? { ...l, x, y } : l)),
+    );
   }, []);
 
-  const addSticker = useCallback((emoji: string) => {
-    const newSticker: StickerLayer = { id: uid(), emoji, x: canvasWidth / 2 - 30, y: canvasHeight / 2 - 30, scale: 1, rotation: 0 };
-    setStickerLayers((prev) => [...prev, newSticker]);
-    setActiveLayerId(newSticker.id);
-  }, [canvasWidth, canvasHeight]);
+  const addSticker = useCallback(
+    (emoji: string) => {
+      const newSticker: StickerLayer = {
+        id: uid(),
+        emoji,
+        x: canvasWidth / 2 - 30,
+        y: canvasHeight / 2 - 30,
+        scale: 1,
+        rotation: 0,
+      };
+      setStickerLayers((prev) => [...prev, newSticker]);
+      setActiveLayerId(newSticker.id);
+    },
+    [canvasWidth, canvasHeight],
+  );
 
   const updateStickerLayer = useCallback((id: string, x: number, y: number) => {
-    setStickerLayers((prev) => prev.map((sl) => (sl.id === id ? { ...sl, x, y } : sl)));
+    setStickerLayers((prev) =>
+      prev.map((sl) => (sl.id === id ? { ...sl, x, y } : sl)),
+    );
   }, []);
 
   const deleteLayer = useCallback((id: string) => {
@@ -552,27 +941,32 @@ export default function PhotoEditorScreen() {
   // - If the layer isn't active yet → make it active
   // - If the layer isn't active yet → make it active
   // - If it IS already active and is a text layer, AND the action was a Tap → enter text-edit mode
-  const handleLayerSelect = useCallback((id: string, isTap = false) => {
-    if (activeLayerId === id && isTap) {
-      // Already active + tapped: check if it's a text layer → re-edit
-      const layer = textLayers.find((l) => l.id === id);
-      if (layer) {
-        setEditingText(layer.text);
-        setTextColor(layer.color);
-        setTextBold(layer.bold);
-        setTextAlign(layer.align);
-        setTextBgStyle(layer.bgStyle);
-        setEditingLayerId(id);
-        setActiveTool("text");
+  const handleLayerSelect = useCallback(
+    (id: string, isTap = false) => {
+      if (activeLayerId === id && isTap) {
+        // Already active + tapped: check if it's a text layer → re-edit
+        const layer = textLayers.find((l) => l.id === id);
+        if (layer) {
+          setEditingText(layer.text);
+          setTextColor(layer.color);
+          setTextBold(layer.bold);
+          setTextAlign(layer.align);
+          setTextBgStyle(layer.bgStyle);
+          setEditingLayerId(id);
+          setActiveTool("text");
+        }
+      } else {
+        setActiveLayerId(id);
       }
-    } else {
-      setActiveLayerId(id);
-    }
-  }, [activeLayerId, textLayers]);
+    },
+    [activeLayerId, textLayers],
+  );
 
   const updateActiveTextLayer = (updates: Partial<TextLayer>) => {
     if (!activeLayerId) return;
-    setTextLayers((prev) => prev.map((l) => (l.id === activeLayerId ? { ...l, ...updates } : l)));
+    setTextLayers((prev) =>
+      prev.map((l) => (l.id === activeLayerId ? { ...l, ...updates } : l)),
+    );
   };
 
   const undoLastPath = useCallback(() => {
@@ -582,7 +976,7 @@ export default function PhotoEditorScreen() {
   const handleDone = useCallback(async () => {
     setActiveLayerId(null);
     setActiveTool("none");
-    if (Platform.OS === 'web') {
+    if (Platform.OS === "web") {
       setIsExporting(true);
       setTimeout(() => {
         const base64 = canvasRef.current?.exportAsBase64();
@@ -644,7 +1038,10 @@ export default function PhotoEditorScreen() {
   const renderExpoGoFallback = () => (
     <View style={styles.expoGoFallback}>
       <Text style={styles.expoGoTitle}>Photo Editor</Text>
-      <Text style={styles.expoGoSubtitle}>The photo editor requires a development build and is not available in Expo Go.</Text>
+      <Text style={styles.expoGoSubtitle}>
+        The photo editor requires a development build and is not available in
+        Expo Go.
+      </Text>
       <TouchableOpacity style={styles.expoGoBtn} onPress={handleCancel}>
         <Text style={styles.expoGoBtnLabel}>Close</Text>
       </TouchableOpacity>
@@ -661,188 +1058,301 @@ export default function PhotoEditorScreen() {
           // The outermost GestureDetector captures pinch/rotate across the ENTIRE screen
           // so one finger can be on the active layer while the other is anywhere.
           <GestureDetector gesture={globalTransformGesture}>
-            <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
-            <View style={styles.root}>
-
-              {/* ── Top Bar ─────────────────────────────────────────── */}
-              <View style={styles.topBar}>
-                <TouchableOpacity onPress={activeTool !== "none" ? handleToolCancel : handleCancel} style={styles.pillBtn}>
-                  {activeTool !== "none"
-                    ? <Text style={styles.pillBtnText}>Cancel</Text>
-                    : <X size={18} color="#fff" strokeWidth={2.5} />}
-                </TouchableOpacity>
-                {activeTool === "none" && (
-                  <TouchableOpacity style={styles.pillBtn}>
-                    <HelpCircle size={18} color="#fff" strokeWidth={2} />
+            <KeyboardAvoidingView
+              style={{ flex: 1 }}
+              behavior={Platform.OS === "ios" ? "padding" : "height"}
+            >
+              <View style={styles.root}>
+                {/* ── Top Bar ─────────────────────────────────────────── */}
+                <View style={styles.topBar}>
+                  <TouchableOpacity
+                    onPress={
+                      activeTool !== "none" ? handleToolCancel : handleCancel
+                    }
+                    style={styles.pillBtn}
+                  >
+                    {activeTool !== "none" ? (
+                      <Text style={styles.pillBtnText}>Cancel</Text>
+                    ) : (
+                      <X size={18} color="#fff" strokeWidth={2.5} />
+                    )}
                   </TouchableOpacity>
-                )}
-                <View style={{ flex: 1 }} />
-                <TouchableOpacity onPress={activeTool !== "none" ? handleToolDone : handleDone} style={[styles.pillBtn, styles.doneBtn]}>
-                  <Text style={[styles.pillBtnText, { color: "#fff", fontWeight: "700" }]}>Done</Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* ── Canvas Area ─────────────────────────────────────── */}
-              <View style={styles.canvasContainer}>
-                <GestureDetector gesture={canvasGestures}>
-                  <View style={[styles.canvasInner, { width: canvasWidth, height: canvasHeight }]} ref={captureViewRef} collapsable={false}>
-                    {SkiaEditorCanvasComponent && currentUri ? (
-                      <SkiaEditorCanvasComponent
-                        ref={canvasRef}
-                        imageUri={currentUri}
-                        canvasWidth={canvasWidth}
-                        canvasHeight={canvasHeight}
-                        drawPaths={drawPaths}
-                        textLayers={isExporting && Platform.OS === 'web' ? textLayers : []}
-                        stickerLayers={isExporting && Platform.OS === 'web' ? stickerLayers : []}
-                      />
-                    ) : null}
-
-                    {textLayers.map((layer) => (
-                      <DraggableText 
-                        key={layer.id} 
-                        layer={layer} 
-                        isActive={activeLayerId === layer.id}
-                        isExporting={isExporting} 
-                        globalScale={globalScale}
-                        globalRotation={globalRotation}
-                        globalPinchRef={globalPinchRef}
-                        globalRotateRef={globalRotateRef}
-                        onUpdatePosition={updateTextPosition} 
-                        onSelect={handleLayerSelect}
-                        onDelete={deleteLayer}
-                      />
-                    ))}
-
-                    {stickerLayers.map((sticker) => (
-                      <DraggableSticker 
-                        key={sticker.id} 
-                        layer={sticker} 
-                        isActive={activeLayerId === sticker.id}
-                        isExporting={isExporting} 
-                        globalScale={globalScale}
-                        globalRotation={globalRotation}
-                        globalPinchRef={globalPinchRef}
-                        globalRotateRef={globalRotateRef}
-                        onUpdateLayer={updateStickerLayer} 
-                        onSelect={handleLayerSelect}
-                        onDelete={deleteLayer}
-                      />
-                    ))}
-                  </View>
-                </GestureDetector>
-              </View>
-
-              {/* ── Draw Toolbar ────────────────────────────────────── */}
-              {activeTool === "draw" && (
-                <DrawToolbar activeBrush={activeBrush} brushColor={brushColor} onBrushChange={setActiveBrush} onColorPress={() => { Keyboard.dismiss(); setShowColorSheet(true); }} onUndo={undoLastPath} />
-              )}
-
-              {/* ── Active-layer text controls (above toolbar) ─────────── */}
-              {activeTool !== "text" && activeTextLayer && (
-                <View style={styles.aboveToolbarControls}>
-                  <TextControlsBar
-                    align={activeTextLayer.align}
-                    bgStyle={activeTextLayer.bgStyle}
-                    color={activeTextLayer.color}
-                    bold={activeTextLayer.bold}
-                    onAlignToggle={() => updateActiveTextLayer({ align: activeTextLayer.align === "left" ? "center" : activeTextLayer.align === "center" ? "right" : "left" })}
-                    onBgToggle={() => updateActiveTextLayer({ bgStyle: activeTextLayer.bgStyle === "none" ? "solid" : "none" })}
-                    onBoldToggle={() => updateActiveTextLayer({ bold: !activeTextLayer.bold })}
-                    onColorPress={() => { Keyboard.dismiss(); setShowColorSheet(true); }}
-                  />
-                </View>
-              )}
-
-              {/* ── Main Bottom Toolbar ──────────────────────────────── */}
-              {activeTool !== "draw" && activeTool !== "text" && (
-                <View style={styles.bottomToolbar}>
-                  {TOOLS.map((tool) => {
-                    const IconComp = tool.Icon;
-                    const isActive = activeTool === tool.id;
-                    return (
-                      <TouchableOpacity key={tool.id} onPress={() => handleToolPress(tool.id as EditorTool)} style={styles.toolItem}>
-                        <View style={[styles.toolIcon, isActive && styles.toolIconActive]}>
-                          <IconComp size={22} color="#fff" strokeWidth={isActive ? 2.5 : 1.8} />
-                        </View>
-                        <Text style={styles.toolLabel}>{tool.label}</Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              )}
-
-              {/* ── Pinterest-style Text Editing Overlay (renders LAST = on top) ─ */}
-              {activeTool === "text" && (
-                <KeyboardAvoidingView
-                  style={[StyleSheet.absoluteFill, { zIndex: 50 }]}
-                  behavior={Platform.OS === "ios" ? "padding" : "height"}
-                  pointerEvents="box-none"
-                >
-                  {/* Dark scrim */}
-                  <View style={styles.textOverlayScrim} pointerEvents="none" />
-
-                  {/* Centered text preview */}
-                  <View style={styles.textOverlayCenter} pointerEvents="none">
+                  {activeTool === "none" && (
+                    <TouchableOpacity style={styles.pillBtn}>
+                      <HelpCircle size={18} color="#fff" strokeWidth={2} />
+                    </TouchableOpacity>
+                  )}
+                  <View style={{ flex: 1 }} />
+                  <TouchableOpacity
+                    onPress={
+                      activeTool !== "none" ? handleToolDone : handleDone
+                    }
+                    style={[styles.pillBtn, styles.doneBtn]}
+                  >
                     <Text
                       style={[
-                        styles.textOverlayPreview,
-                        {
-                          color: textColor,
-                          fontWeight: textBold ? "700" : "400",
-                          textAlign: textAlign,
-                          backgroundColor: textBgStyle === "solid" ? "rgba(0,0,0,0.55)" : "transparent",
-                        },
+                        styles.pillBtnText,
+                        { color: "#fff", fontWeight: "700" },
                       ]}
                     >
-                      {editingText || "Type something..."}
+                      Done
                     </Text>
-                  </View>
+                  </TouchableOpacity>
+                </View>
 
-                  {/* Controls + hidden input pinned above keyboard */}
-                  <View style={styles.textOverlayBottom}>
-                    <View style={styles.textControlsRow}>
-                      <TextControlsBar
-                        align={textAlign}
-                        bgStyle={textBgStyle}
-                        color={textColor}
-                        bold={textBold}
-                        onAlignToggle={() => setTextAlign((a) => a === "left" ? "center" : a === "center" ? "right" : "left")}
-                        onBgToggle={() => setTextBgStyle((s) => (s === "none" ? "solid" : "none"))}
-                        onBoldToggle={() => setTextBold((b) => !b)}
-                        onColorPress={() => { Keyboard.dismiss(); setShowColorSheet(true); }}
-                      />
+                {/* ── Canvas Area ─────────────────────────────────────── */}
+                <View style={styles.canvasContainer}>
+                  <GestureDetector gesture={canvasGestures}>
+                    <View
+                      style={[
+                        styles.canvasInner,
+                        { width: canvasWidth, height: canvasHeight },
+                      ]}
+                      ref={captureViewRef}
+                      collapsable={false}
+                    >
+                      {SkiaEditorCanvasComponent && currentUri ? (
+                        <SkiaEditorCanvasComponent
+                          ref={canvasRef}
+                          imageUri={currentUri}
+                          canvasWidth={canvasWidth}
+                          canvasHeight={canvasHeight}
+                          drawPaths={drawPaths}
+                          textLayers={
+                            isExporting && Platform.OS === "web"
+                              ? textLayers
+                              : []
+                          }
+                          stickerLayers={
+                            isExporting && Platform.OS === "web"
+                              ? stickerLayers
+                              : []
+                          }
+                        />
+                      ) : null}
+
+                      {textLayers.map((layer) => (
+                        <DraggableText
+                          key={layer.id}
+                          layer={layer}
+                          isActive={activeLayerId === layer.id}
+                          isExporting={isExporting}
+                          globalScale={globalScale}
+                          globalRotation={globalRotation}
+                          globalPinchRef={globalPinchRef}
+                          globalRotateRef={globalRotateRef}
+                          onUpdatePosition={updateTextPosition}
+                          onSelect={handleLayerSelect}
+                          onDelete={deleteLayer}
+                        />
+                      ))}
+
+                      {stickerLayers.map((sticker) => (
+                        <DraggableSticker
+                          key={sticker.id}
+                          layer={sticker}
+                          isActive={activeLayerId === sticker.id}
+                          isExporting={isExporting}
+                          globalScale={globalScale}
+                          globalRotation={globalRotation}
+                          globalPinchRef={globalPinchRef}
+                          globalRotateRef={globalRotateRef}
+                          onUpdateLayer={updateStickerLayer}
+                          onSelect={handleLayerSelect}
+                          onDelete={deleteLayer}
+                        />
+                      ))}
                     </View>
-                    <TextInput
-                      style={styles.textOverlayHiddenInput}
-                      value={editingText}
-                      onChangeText={setEditingText}
-                      autoFocus
-                      multiline
-                      returnKeyType="done"
-                      onSubmitEditing={addTextLayer}
-                      blurOnSubmit
-                      caretHidden={false}
+                  </GestureDetector>
+                </View>
+
+                {/* ── Draw Toolbar ────────────────────────────────────── */}
+                {activeTool === "draw" && (
+                  <DrawToolbar
+                    activeBrush={activeBrush}
+                    brushColor={brushColor}
+                    onBrushChange={setActiveBrush}
+                    onColorPress={() => {
+                      Keyboard.dismiss();
+                      setShowColorSheet(true);
+                    }}
+                    onUndo={undoLastPath}
+                  />
+                )}
+
+                {/* ── Active-layer text controls (above toolbar) ─────────── */}
+                {activeTool !== "text" && activeTextLayer && (
+                  <View style={styles.aboveToolbarControls}>
+                    <TextControlsBar
+                      align={activeTextLayer.align}
+                      bgStyle={activeTextLayer.bgStyle}
+                      color={activeTextLayer.color}
+                      bold={activeTextLayer.bold}
+                      onAlignToggle={() =>
+                        updateActiveTextLayer({
+                          align:
+                            activeTextLayer.align === "left"
+                              ? "center"
+                              : activeTextLayer.align === "center"
+                                ? "right"
+                                : "left",
+                        })
+                      }
+                      onBgToggle={() =>
+                        updateActiveTextLayer({
+                          bgStyle:
+                            activeTextLayer.bgStyle === "none"
+                              ? "solid"
+                              : "none",
+                        })
+                      }
+                      onBoldToggle={() =>
+                        updateActiveTextLayer({ bold: !activeTextLayer.bold })
+                      }
+                      onColorPress={() => {
+                        Keyboard.dismiss();
+                        setShowColorSheet(true);
+                      }}
                     />
                   </View>
-                </KeyboardAvoidingView>
-              )}
+                )}
 
-              {/* ── Color picker and sticker sheet (Renders AFTER text overlay to be on top) ── */}
-              <ColorSheet 
-                visible={showColorSheet} 
-                selected={activeTool === "draw" ? brushColor : (activeTool === "text" ? textColor : (activeTextLayer ? activeTextLayer.color : textColor))} 
-                onSelect={(c: string) => { 
-                  if (activeTool === "draw") setBrushColor(c); 
-                  else if (activeTool === "text") setTextColor(c);
-                  else if (activeTextLayer) updateActiveTextLayer({ color: c });
-                  else setTextColor(c); 
-                  setShowColorSheet(false); 
-                }} 
-                onClose={() => setShowColorSheet(false)} 
-              />
-              <StickerSheet visible={showStickerSheet} onSelect={addSticker} onClose={() => setShowStickerSheet(false)} />
-            </View>
+                {/* ── Main Bottom Toolbar ──────────────────────────────── */}
+                {activeTool !== "draw" && activeTool !== "text" && (
+                  <View style={styles.bottomToolbar}>
+                    {TOOLS.map((tool) => {
+                      const IconComp = tool.Icon;
+                      const isActive = activeTool === tool.id;
+                      return (
+                        <TouchableOpacity
+                          key={tool.id}
+                          onPress={() => handleToolPress(tool.id as EditorTool)}
+                          style={styles.toolItem}
+                        >
+                          <View
+                            style={[
+                              styles.toolIcon,
+                              isActive && styles.toolIconActive,
+                            ]}
+                          >
+                            <IconComp
+                              size={22}
+                              color="#fff"
+                              strokeWidth={isActive ? 2.5 : 1.8}
+                            />
+                          </View>
+                          <Text style={styles.toolLabel}>{tool.label}</Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                )}
+
+                {/* ── Pinterest-style Text Editing Overlay (renders LAST = on top) ─ */}
+                {activeTool === "text" && (
+                  <KeyboardAvoidingView
+                    style={[StyleSheet.absoluteFill, { zIndex: 50 }]}
+                    behavior={Platform.OS === "ios" ? "padding" : "height"}
+                    pointerEvents="box-none"
+                  >
+                    {/* Dark scrim */}
+                    <View
+                      style={styles.textOverlayScrim}
+                      pointerEvents="none"
+                    />
+
+                    {/* Centered text preview */}
+                    <View style={styles.textOverlayCenter} pointerEvents="none">
+                      <Text
+                        style={[
+                          styles.textOverlayPreview,
+                          {
+                            color: textColor,
+                            fontWeight: textBold ? "700" : "400",
+                            textAlign: textAlign,
+                            backgroundColor:
+                              textBgStyle === "solid"
+                                ? "rgba(0,0,0,0.55)"
+                                : "transparent",
+                          },
+                        ]}
+                      >
+                        {editingText || "Type something..."}
+                      </Text>
+                    </View>
+
+                    {/* Controls + hidden input pinned above keyboard */}
+                    <View style={styles.textOverlayBottom}>
+                      <View style={styles.textControlsRow}>
+                        <TextControlsBar
+                          align={textAlign}
+                          bgStyle={textBgStyle}
+                          color={textColor}
+                          bold={textBold}
+                          onAlignToggle={() =>
+                            setTextAlign((a) =>
+                              a === "left"
+                                ? "center"
+                                : a === "center"
+                                  ? "right"
+                                  : "left",
+                            )
+                          }
+                          onBgToggle={() =>
+                            setTextBgStyle((s) =>
+                              s === "none" ? "solid" : "none",
+                            )
+                          }
+                          onBoldToggle={() => setTextBold((b) => !b)}
+                          onColorPress={() => {
+                            Keyboard.dismiss();
+                            setShowColorSheet(true);
+                          }}
+                        />
+                      </View>
+                      <TextInput
+                        style={styles.textOverlayHiddenInput}
+                        value={editingText}
+                        onChangeText={setEditingText}
+                        autoFocus
+                        multiline
+                        returnKeyType="done"
+                        onSubmitEditing={addTextLayer}
+                        blurOnSubmit
+                        caretHidden={false}
+                      />
+                    </View>
+                  </KeyboardAvoidingView>
+                )}
+
+                {/* ── Color picker and sticker sheet (Renders AFTER text overlay to be on top) ── */}
+                <ColorSheet
+                  visible={showColorSheet}
+                  selected={
+                    activeTool === "draw"
+                      ? brushColor
+                      : activeTool === "text"
+                        ? textColor
+                        : activeTextLayer
+                          ? activeTextLayer.color
+                          : textColor
+                  }
+                  onSelect={(c: string) => {
+                    if (activeTool === "draw") setBrushColor(c);
+                    else if (activeTool === "text") setTextColor(c);
+                    else if (activeTextLayer)
+                      updateActiveTextLayer({ color: c });
+                    else setTextColor(c);
+                    setShowColorSheet(false);
+                  }}
+                  onClose={() => setShowColorSheet(false)}
+                />
+                <StickerSheet
+                  visible={showStickerSheet}
+                  onSelect={addSticker}
+                  onClose={() => setShowStickerSheet(false)}
+                />
+              </View>
             </KeyboardAvoidingView>
           </GestureDetector>
         )}
@@ -857,7 +1367,10 @@ export default function PhotoEditorScreen() {
             imageHeight={imageHeight}
             allowRatioChange
             presentationStyle="inline"
-            onConfirm={(uri: string) => { setCurrentUri(uri); setShowCrop(false); }}
+            onConfirm={(uri: string) => {
+              setCurrentUri(uri);
+              setShowCrop(false);
+            }}
             onCancel={() => setShowCrop(false)}
           />
         </View>
@@ -876,33 +1389,154 @@ const TOOLS = [
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: EDITOR_BG },
-  topBar: { flexDirection: "row", alignItems: "center", paddingTop: Platform.OS === "ios" ? 56 : 32, paddingHorizontal: 16, paddingBottom: 12, gap: 8, zIndex: 100 },
-  pillBtn: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 24, backgroundColor: PILL_GRAY_BG, alignItems: "center", justifyContent: "center", minWidth: 52, height: 42 },
+  topBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingTop: Platform.OS === "ios" ? 56 : 32,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    gap: 8,
+    zIndex: 100,
+  },
+  pillBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 24,
+    backgroundColor: PILL_GRAY_BG,
+    alignItems: "center",
+    justifyContent: "center",
+    minWidth: 52,
+    height: 42,
+  },
   pillBtnText: { color: "#fff", fontSize: 15, fontWeight: "600" },
   doneBtn: { backgroundColor: PILL_DONE_BG, paddingHorizontal: 20 },
-  canvasContainer: { flex: 1, alignItems: "center", justifyContent: "center", overflow: "hidden" },
+  canvasContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
   canvasInner: { borderRadius: 20, overflow: "hidden", position: "relative" },
-  textOverlayText: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
+  textOverlayText: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
   stickerEmoji: { fontSize: 52 },
   // Pinterest-style text editing overlay
-  textOverlayScrim: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.55)", zIndex: 10 },
-  textOverlayCenter: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "center", zIndex: 11, paddingHorizontal: 24 },
-  textOverlayPreview: { fontSize: 36, fontWeight: "700", color: "#fff", textAlign: "center", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, minWidth: 40 },
-  textOverlayBottom: { position: "absolute", bottom: 0, left: 0, right: 0, zIndex: 12 },
-  textControlsRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", paddingVertical: 10, paddingHorizontal: 16 },
+  textOverlayScrim: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    zIndex: 10,
+  },
+  textOverlayCenter: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 11,
+    paddingHorizontal: 24,
+  },
+  textOverlayPreview: {
+    fontSize: 36,
+    fontWeight: "700",
+    color: "#fff",
+    textAlign: "center",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    minWidth: 40,
+  },
+  textOverlayBottom: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    zIndex: 12,
+  },
+  textControlsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+  },
   // A transparent input that sits at the bottom and grabs keyboard focus
   textOverlayHiddenInput: { height: 1, opacity: 0 },
   // Controls bar that sits directly above the main bottom toolbar
-  aboveToolbarControls: { flexDirection: 'row', justifyContent: 'center', paddingVertical: 8, backgroundColor: 'rgba(20,20,20,0.85)' },
-  floatingTextControls: { position: 'absolute', bottom: 8, left: 0, right: 0, alignItems: 'center', zIndex: 20 },
-  bottomToolbar: { flexDirection: "row", backgroundColor: TOOLBAR_BG, paddingVertical: 12, paddingHorizontal: 8, paddingBottom: Platform.OS === "ios" ? 32 : 16, justifyContent: "space-around" },
+  aboveToolbarControls: {
+    flexDirection: "row",
+    justifyContent: "center",
+    paddingVertical: 8,
+    backgroundColor: "rgba(20,20,20,0.85)",
+  },
+  floatingTextControls: {
+    position: "absolute",
+    bottom: 8,
+    left: 0,
+    right: 0,
+    alignItems: "center",
+    zIndex: 20,
+  },
+  bottomToolbar: {
+    flexDirection: "row",
+    backgroundColor: TOOLBAR_BG,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    paddingBottom: Platform.OS === "ios" ? 32 : 16,
+    justifyContent: "space-around",
+  },
   toolItem: { alignItems: "center", gap: 4 },
-  toolIcon: { width: 52, height: 52, borderRadius: 26, backgroundColor: "rgba(255,255,255,0.1)", alignItems: "center", justifyContent: "center" },
-  toolIconActive: { backgroundColor: "rgba(255,255,255,0.22)", borderWidth: 1.5, borderColor: "rgba(255,255,255,0.6)" },
-  toolLabel: { color: "rgba(255,255,255,0.8)", fontSize: 11, fontWeight: "500" },
-  expoGoFallback: { flex: 1, alignItems: "center", justifyContent: "center", padding: 32, backgroundColor: EDITOR_BG },
-  expoGoTitle: { color: "#fff", fontSize: 24, fontWeight: "700", marginBottom: 12 },
-  expoGoSubtitle: { color: "rgba(255,255,255,0.6)", fontSize: 15, textAlign: "center", lineHeight: 22, marginBottom: 32 },
-  expoGoBtn: { paddingHorizontal: 32, paddingVertical: 14, borderRadius: 32, backgroundColor: PILL_DONE_BG },
+  toolIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  toolIconActive: {
+    backgroundColor: "rgba(255,255,255,0.22)",
+    borderWidth: 1.5,
+    borderColor: "rgba(255,255,255,0.6)",
+  },
+  toolLabel: {
+    color: "rgba(255,255,255,0.8)",
+    fontSize: 11,
+    fontWeight: "500",
+  },
+  expoGoFallback: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 32,
+    backgroundColor: EDITOR_BG,
+  },
+  expoGoTitle: {
+    color: "#fff",
+    fontSize: 24,
+    fontWeight: "700",
+    marginBottom: 12,
+  },
+  expoGoSubtitle: {
+    color: "rgba(255,255,255,0.6)",
+    fontSize: 15,
+    textAlign: "center",
+    lineHeight: 22,
+    marginBottom: 32,
+  },
+  expoGoBtn: {
+    paddingHorizontal: 32,
+    paddingVertical: 14,
+    borderRadius: 32,
+    backgroundColor: PILL_DONE_BG,
+  },
   expoGoBtnLabel: { color: "#fff", fontWeight: "700", fontSize: 16 },
 });

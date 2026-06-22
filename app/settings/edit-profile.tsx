@@ -89,7 +89,12 @@ export default function EditProfileScreen() {
       .eq('id', user.id);
       
     if (error) {
-      alert(error.message);
+      // Check for Postgres unique constraint violation on the username column
+      if (error.code === '23505' && error.message.includes('profiles_username_key')) {
+        alert('This username is already taken. Please choose another one.');
+      } else {
+        alert(error.message);
+      }
     } else {
       setProfile(profile ? { ...profile, ...data, avatar_url: avatarUri } : null);
       router.back();
