@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, ImageBackground } from 'react-native';
+import { View, Text, TouchableOpacity, ActivityIndicator, ImageBackground } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { BlurView } from 'expo-blur';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -86,23 +87,28 @@ export default function ManageInterestsScreen() {
         <Button label="Save" size="sm" onPress={handleSave} isLoading={isSaving} />
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: spacing.xl, paddingBottom: 100 }}>
-        <View style={{ marginBottom: spacing.xl }}>
-          <Text style={{ fontFamily: typography.families.body, fontSize: typography.scale.bodyLarge, color: colors.textSecondary }}>
-            Update the topics you care about to tune your feed.
-          </Text>
-        </View>
-
-        <View style={{ flexDirection: 'row', gap: spacing.md }}>
-          {/* Left Column */}
-          <View style={{ flex: 1, gap: spacing.md }}>
-            {interests.filter((_, i) => i % 2 === 0).map((interest, idx) => {
-              const isSelected = selected.has(interest.id);
-              const heights = [220, 160, 260, 180, 200];
-              const height = heights[idx % heights.length];
-              return (
+      <View style={{ flex: 1 }}>
+        <FlashList
+          data={interests}
+          numColumns={2}
+          masonry={true}
+          keyExtractor={(item) => item.id}
+          estimatedItemSize={200}
+          contentContainerStyle={{ padding: spacing.xl, paddingBottom: 100 }}
+          ListHeaderComponent={
+            <View style={{ marginBottom: spacing.xl }}>
+              <Text style={{ fontFamily: typography.families.body, fontSize: typography.scale.bodyLarge, color: colors.textSecondary }}>
+                Update the topics you care about to tune your feed.
+              </Text>
+            </View>
+          }
+          renderItem={({ item: interest, index }) => {
+            const isSelected = selected.has(interest.id);
+            const heights = [220, 160, 260, 180, 200, 180, 240, 160, 220, 250];
+            const height = heights[index % heights.length];
+            return (
+              <View style={{ padding: spacing.md / 2 }}>
                 <TouchableOpacity
-                  key={interest.id}
                   onPress={() => toggleInterest(interest.id)}
                   activeOpacity={0.8}
                   style={{
@@ -129,50 +135,11 @@ export default function ManageInterestsScreen() {
                     </View>
                   </ImageBackground>
                 </TouchableOpacity>
-              );
-            })}
-          </View>
-
-          {/* Right Column */}
-          <View style={{ flex: 1, gap: spacing.md }}>
-            {interests.filter((_, i) => i % 2 !== 0).map((interest, idx) => {
-              const isSelected = selected.has(interest.id);
-              const heights = [180, 240, 160, 220, 250];
-              const height = heights[idx % heights.length];
-              return (
-                <TouchableOpacity
-                  key={interest.id}
-                  onPress={() => toggleInterest(interest.id)}
-                  activeOpacity={0.8}
-                  style={{
-                    height,
-                    borderRadius: radius.lg,
-                    overflow: 'hidden',
-                    borderWidth: 2,
-                    borderColor: isSelected ? colors.primary : 'transparent',
-                  }}
-                >
-                  <ImageBackground
-                    source={{ uri: interest.cover_image_url || 'https://images.unsplash.com/photo-1557683316-973673baf926?auto=format&fit=crop&q=80&w=400' }}
-                    style={{ flex: 1 }}
-                  >
-                    <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center', padding: spacing.sm }}>
-                      {isSelected && (
-                        <View style={{ position: 'absolute', top: 12, right: 12, backgroundColor: colors.primary, borderRadius: 12, padding: 4 }}>
-                          <Check size={16} color="#fff" strokeWidth={3} />
-                        </View>
-                      )}
-                      <Text style={{ fontFamily: typography.families.headingBold, fontSize: 22, color: '#fff', textAlign: 'center' }}>
-                        {interest.name}
-                      </Text>
-                    </View>
-                  </ImageBackground>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </View>
-      </ScrollView>
+              </View>
+            );
+          }}
+        />
+      </View>
     </SafeAreaView>
   );
 }
