@@ -1,16 +1,24 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Share, RefreshControl, StyleSheet } from 'react-native';
-import { Image } from 'expo-image';
-import { router } from 'expo-router';
-import { Settings, Share as ShareIcon, Plus } from 'lucide-react-native';
-import { useTheme } from '@/hooks/useTheme';
-import { Avatar } from '@/components/ui/Avatar';
-import { Button } from '@/components/ui/Button';
-import { MasonryGrid } from '@/components/pins/MasonryGrid';
-import { formatCount } from '@/utils/formatters';
-import { supabase } from '@/lib/supabase/client';
-import { useAuthStore } from '@/stores/authStore';
-import type { ProfileWithStats, FeedPin, Board } from '@/types/database';
+import React, { useState, useEffect, useCallback } from "react";
+import {
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  Share,
+  RefreshControl,
+  StyleSheet,
+} from "react-native";
+import { Image } from "expo-image";
+import { router } from "expo-router";
+import { Settings, Share as ShareIcon, Plus } from "lucide-react-native";
+import { useTheme } from "@/hooks/useTheme";
+import { Avatar } from "@/components/ui/Avatar";
+import { Button } from "@/components/ui/Button";
+import { MasonryGrid } from "@/components/pins/MasonryGrid";
+import { formatCount } from "@/utils/formatters";
+import { supabase } from "@/lib/supabase/client";
+import { useAuthStore } from "@/stores/authStore";
+import type { ProfileWithStats, FeedPin, Board } from "@/types/database";
 
 interface ProfileViewProps {
   userId: string;
@@ -20,76 +28,107 @@ interface ProfileViewProps {
 export function ProfileView({ userId, isCurrentUser }: ProfileViewProps) {
   const { colors, spacing, typography, radius } = useTheme();
   const { user } = useAuthStore();
-  
+
   const [profile, setProfile] = useState<ProfileWithStats | null>(null);
-  const [activeTab, setActiveTab] = useState<'created' | 'saved'>('created');
+  const [activeTab, setActiveTab] = useState<"created" | "saved">("created");
   const [pins, setPins] = useState<FeedPin[]>([]);
   const [boards, setBoards] = useState<Board[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [recentSaves, setRecentSaves] = useState<string[]>([]);
 
-  const fetchProfile = useCallback(async (background = false) => {
-    if (!background) setIsLoading(true);
-    // Fetch profile with basic stats
-    const { data: p } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .single();
-      
-    if (p) {
-      // Fetch counts (parallel)
-      const [pinsCount, followersCount, followingCount, boardsCount, isFollowing] = await Promise.all([
-        supabase.from('pins').select('id', { count: 'exact', head: true }).eq('user_id', userId),
-        supabase.from('follows').select('follower_id', { count: 'exact', head: true }).eq('following_id', userId),
-        supabase.from('follows').select('following_id', { count: 'exact', head: true }).eq('follower_id', userId),
-        supabase.from('boards').select('id', { count: 'exact', head: true }).eq('user_id', userId).eq('is_private', false),
-        user && !isCurrentUser ? supabase.from('follows').select('follower_id').eq('follower_id', user.id).eq('following_id', userId).single() : Promise.resolve({ data: null })
-      ]);
+  const fetchProfile = useCallback(
+    async (background = false) => {
+      if (!background) setIsLoading(true);
+      // Fetch profile with basic stats
+      const { data: p } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", userId)
+        .single();
 
-      setProfile({
-        ...p,
-        pins_count: pinsCount.count ?? 0,
-        followers_count: followersCount.count ?? 0,
-        following_count: followingCount.count ?? 0,
-        boards_count: boardsCount.count ?? 0,
-        is_following: !!isFollowing.data
-      });
-    }
-    if (!background) setIsLoading(false);
-  }, [userId, user?.id, isCurrentUser]);
+      if (p) {
+        // Fetch counts (parallel)
+        const [
+          pinsCount,
+          followersCount,
+          followingCount,
+          boardsCount,
+          isFollowing,
+        ] = await Promise.all([
+          supabase
+            .from("pins")
+            .select("id", { count: "exact", head: true })
+            .eq("user_id", userId),
+          supabase
+            .from("follows")
+            .select("follower_id", { count: "exact", head: true })
+            .eq("following_id", userId),
+          supabase
+            .from("follows")
+            .select("following_id", { count: "exact", head: true })
+            .eq("follower_id", userId),
+          supabase
+            .from("boards")
+            .select("id", { count: "exact", head: true })
+            .eq("user_id", userId)
+            .eq("is_private", false),
+          user && !isCurrentUser
+            ? supabase
+                .from("follows")
+                .select("follower_id")
+                .eq("follower_id", user.id)
+                .eq("following_id", userId)
+                .single()
+            : Promise.resolve({ data: null }),
+        ]);
+
+        setProfile({
+          ...p,
+          pins_count: pinsCount.count ?? 0,
+          followers_count: followersCount.count ?? 0,
+          following_count: followingCount.count ?? 0,
+          boards_count: boardsCount.count ?? 0,
+          is_following: !!isFollowing.data,
+        });
+      }
+      if (!background) setIsLoading(false);
+    },
+    [userId, user?.id, isCurrentUser],
+  );
 
   useEffect(() => {
     fetchProfile();
   }, [fetchProfile]);
 
   const fetchContent = useCallback(async () => {
-    if (activeTab === 'created') {
+    if (activeTab === "created") {
       const { data } = await supabase
-        .from('pins')
-        .select('*, profile:user_id(id, username, avatar_url, full_name), assets:pin_assets(*)')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false });
+        .from("pins")
+        .select(
+          "*, profile:user_id(id, username, avatar_url, full_name), assets:pin_assets(*)",
+        )
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false });
       setPins(data ?? []);
     } else {
       const { data } = await supabase
-        .from('boards')
-        .select('*')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false });
+        .from("boards")
+        .select("*")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false });
       setBoards(data ?? []);
 
       // Fetch recent saves for the "All Pins" card cover
       const { data: savesData, error: savesError } = await supabase
-        .from('saves')
-        .select('pin:pin_id(id, assets:pin_assets(*))')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
+        .from("saves")
+        .select("pin:pin_id(id, assets:pin_assets(*))")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
         .limit(4);
-        
+
       if (savesError) {
-        console.error('Error fetching recent saves:', savesError);
+        console.error("Error fetching recent saves:", savesError);
       }
 
       if (savesData) {
@@ -98,11 +137,13 @@ export function ProfileView({ userId, isCurrentUser }: ProfileViewProps) {
           .map((s: any) => {
             const pin = Array.isArray(s.pin) ? s.pin[0] : s.pin;
             if (!pin || !pin.assets || pin.assets.length === 0) return null;
-            const thumb = pin.assets.find((a: any) => a.variant === 'thumb' || a.variant === '360');
+            const thumb = pin.assets.find(
+              (a: any) => a.variant === "thumb" || a.variant === "360",
+            );
             return thumb ? thumb.url : pin.assets[0].url;
           })
           .filter(Boolean);
-        console.log('Fetched recent save URLs:', urls);
+        console.log("Fetched recent save URLs:", urls);
         setRecentSaves(urls);
       }
     }
@@ -125,33 +166,51 @@ export function ProfileView({ userId, isCurrentUser }: ProfileViewProps) {
       return;
     }
     const wasFollowing = profile.is_following;
-    setProfile(p => p ? { ...p, is_following: !wasFollowing, followers_count: p.followers_count + (wasFollowing ? -1 : 1) } : null);
-    
+    setProfile((p) =>
+      p
+        ? {
+            ...p,
+            is_following: !wasFollowing,
+            followers_count: p.followers_count + (wasFollowing ? -1 : 1),
+          }
+        : null,
+    );
+
     if (wasFollowing) {
-      const { error } = await supabase.from('follows').delete().eq('follower_id', user.id).eq('following_id', userId);
+      const { error } = await supabase
+        .from("follows")
+        .delete()
+        .eq("follower_id", user.id)
+        .eq("following_id", userId);
       if (error) console.error("Unfollow error:", error);
     } else {
-      const { error } = await supabase.from('follows').insert({ follower_id: user.id, following_id: userId });
+      const { error } = await supabase
+        .from("follows")
+        .insert({ follower_id: user.id, following_id: userId });
       if (error) console.error("Follow error:", error);
     }
   };
 
   const handleShare = () => {
     if (profile) {
-      Share.share({ url: `https://me.ritom.indie/user/${profile.username}`, message: `Check out @${profile.username} on Indie!` });
+      Share.share({
+        url: `https://me.ritom.indie/user/${profile.username}`,
+        message: `Check out @${profile.username} on Indie!`,
+      });
     }
   };
 
-  const authProfile = useAuthStore(state => state.profile);
+  const authProfile = useAuthStore((state) => state.profile);
 
   if (!profile) return null;
 
   // Use the global auth profile if this is the current user so edits show up instantly
-  const displayProfile = isCurrentUser && authProfile ? { ...profile, ...authProfile } : profile;
+  const displayProfile =
+    isCurrentUser && authProfile ? { ...profile, ...authProfile } : profile;
 
   return (
-    <ScrollView 
-      showsVerticalScrollIndicator={false} 
+    <ScrollView
+      showsVerticalScrollIndicator={false}
       contentContainerStyle={{ paddingBottom: spacing.xxl }}
       refreshControl={
         <RefreshControl
@@ -162,47 +221,140 @@ export function ProfileView({ userId, isCurrentUser }: ProfileViewProps) {
         />
       }
     >
-      <View style={{ alignItems: 'center', padding: spacing.xl }}>
-        <Avatar uri={displayProfile.avatar_url} name={displayProfile.full_name ?? displayProfile.username} size="xl" />
-        
-        <Text style={{ fontFamily: typography.families.headingBold, fontSize: 28, color: colors.text, marginTop: spacing.md }}>
+      <View style={{ alignItems: "center", padding: spacing.xl }}>
+        <Avatar
+          uri={displayProfile.avatar_url}
+          name={displayProfile.full_name ?? displayProfile.username}
+          size="xl"
+        />
+
+        <Text
+          style={{
+            fontFamily: typography.families.headingBold,
+            fontSize: 28,
+            color: colors.text,
+            marginTop: spacing.md,
+          }}
+        >
           {displayProfile.full_name ?? displayProfile.username}
         </Text>
-        
-        <Text style={{ fontFamily: typography.families.body, fontSize: typography.scale.body, color: colors.textSecondary, marginTop: 4 }}>
+
+        <Text
+          style={{
+            fontFamily: typography.families.body,
+            fontSize: typography.scale.body,
+            color: colors.textSecondary,
+            marginTop: 4,
+          }}
+        >
           @{displayProfile.username}
         </Text>
 
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginTop: spacing.sm }}>
-          <Text style={{ fontFamily: typography.families.bodyMedium, fontSize: typography.scale.body, color: colors.text }}>
-            {formatCount(displayProfile.followers_count)} <Text style={{ color: colors.textSecondary, fontFamily: typography.families.body }}>followers</Text>
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: spacing.md,
+            marginTop: spacing.sm,
+          }}
+        >
+          <Text
+            style={{
+              fontFamily: typography.families.bodyMedium,
+              fontSize: typography.scale.body,
+              color: colors.text,
+            }}
+          >
+            {formatCount(displayProfile.followers_count)}{" "}
+            <Text
+              style={{
+                color: colors.textSecondary,
+                fontFamily: typography.families.body,
+              }}
+            >
+              followers
+            </Text>
           </Text>
-          <Text style={{ fontFamily: typography.families.bodyMedium, fontSize: typography.scale.body, color: colors.textSecondary }}>·</Text>
-          <Text style={{ fontFamily: typography.families.bodyMedium, fontSize: typography.scale.body, color: colors.text }}>
-            {formatCount(displayProfile.following_count)} <Text style={{ color: colors.textSecondary, fontFamily: typography.families.body }}>following</Text>
+          <Text
+            style={{
+              fontFamily: typography.families.bodyMedium,
+              fontSize: typography.scale.body,
+              color: colors.textSecondary,
+            }}
+          >
+            ·
+          </Text>
+          <Text
+            style={{
+              fontFamily: typography.families.bodyMedium,
+              fontSize: typography.scale.body,
+              color: colors.text,
+            }}
+          >
+            {formatCount(displayProfile.following_count)}{" "}
+            <Text
+              style={{
+                color: colors.textSecondary,
+                fontFamily: typography.families.body,
+              }}
+            >
+              following
+            </Text>
           </Text>
         </View>
 
         {displayProfile.bio && (
-          <Text style={{ fontFamily: typography.families.body, fontSize: typography.scale.body, color: colors.text, textAlign: 'center', marginTop: spacing.md, maxWidth: 400 }}>
+          <Text
+            style={{
+              fontFamily: typography.families.body,
+              fontSize: typography.scale.body,
+              color: colors.text,
+              textAlign: "center",
+              marginTop: spacing.md,
+              maxWidth: 400,
+            }}
+          >
             {displayProfile.bio}
           </Text>
         )}
 
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.xl }}>
-          <Button label="Share" variant="secondary" onPress={handleShare} icon={<ShareIcon size={18} color={colors.text} />} />
-          
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: spacing.sm,
+            marginTop: spacing.xl,
+          }}
+        >
+          <Button
+            label="Share"
+            variant="secondary"
+            onPress={handleShare}
+            icon={<ShareIcon size={18} color={colors.text} />}
+          />
+
           {isCurrentUser ? (
             <>
-              <Button label="Edit Profile" variant="secondary" onPress={() => router.push('/settings/edit-profile')} />
-              <TouchableOpacity onPress={() => router.push('/settings')} style={{ padding: 12, backgroundColor: colors.surface, borderRadius: radius.pill }}>
+              <Button
+                label="Edit Profile"
+                variant="secondary"
+                onPress={() => router.push("/settings/edit-profile")}
+              />
+              <TouchableOpacity
+                onPress={() => router.push("/settings")}
+                style={{
+                  padding: 12,
+                  backgroundColor: colors.surface,
+                  borderRadius: radius.pill,
+                }}
+              >
                 <Settings size={22} color={colors.icon} />
               </TouchableOpacity>
             </>
           ) : (
             <Button
-              label={profile.is_following ? 'Following' : 'Follow'}
-              variant={profile.is_following ? 'secondary' : 'primary'}
+              label={profile.is_following ? "Following" : "Follow"}
+              variant={profile.is_following ? "secondary" : "primary"}
               onPress={handleFollow}
             />
           )}
@@ -210,14 +362,56 @@ export function ProfileView({ userId, isCurrentUser }: ProfileViewProps) {
       </View>
 
       {/* Tabs */}
-      <View style={{ flexDirection: 'row', justifyContent: 'center', gap: spacing.xl, marginBottom: spacing.lg }}>
-        <TouchableOpacity onPress={() => setActiveTab('created')} style={{ paddingBottom: spacing.sm, borderBottomWidth: 3, borderBottomColor: activeTab === 'created' ? colors.primary : 'transparent' }}>
-          <Text style={{ fontFamily: activeTab === 'created' ? typography.families.heading : typography.families.bodyMedium, fontSize: typography.scale.bodyLarge, color: activeTab === 'created' ? colors.text : colors.textSecondary }}>
+      <View
+        style={{
+          flexDirection: "row",
+          justifyContent: "center",
+          gap: spacing.xl,
+          marginBottom: spacing.lg,
+        }}
+      >
+        <TouchableOpacity
+          onPress={() => setActiveTab("created")}
+          style={{
+            paddingBottom: spacing.sm,
+            borderBottomWidth: 3,
+            borderBottomColor:
+              activeTab === "created" ? colors.primary : "transparent",
+          }}
+        >
+          <Text
+            style={{
+              fontFamily:
+                activeTab === "created"
+                  ? typography.families.heading
+                  : typography.families.bodyMedium,
+              fontSize: typography.scale.bodyLarge,
+              color:
+                activeTab === "created" ? colors.text : colors.textSecondary,
+            }}
+          >
             Created
           </Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => setActiveTab('saved')} style={{ paddingBottom: spacing.sm, borderBottomWidth: 3, borderBottomColor: activeTab === 'saved' ? colors.primary : 'transparent' }}>
-          <Text style={{ fontFamily: activeTab === 'saved' ? typography.families.heading : typography.families.bodyMedium, fontSize: typography.scale.bodyLarge, color: activeTab === 'saved' ? colors.text : colors.textSecondary }}>
+        <TouchableOpacity
+          onPress={() => setActiveTab("saved")}
+          style={{
+            paddingBottom: spacing.sm,
+            borderBottomWidth: 3,
+            borderBottomColor:
+              activeTab === "saved" ? colors.primary : "transparent",
+          }}
+        >
+          <Text
+            style={{
+              fontFamily:
+                activeTab === "saved"
+                  ? typography.families.heading
+                  : typography.families.bodyMedium,
+              fontSize: typography.scale.bodyLarge,
+              color: activeTab === "saved" ? colors.text : colors.textSecondary,
+            }}
+          >
             Saved
           </Text>
         </TouchableOpacity>
@@ -225,53 +419,128 @@ export function ProfileView({ userId, isCurrentUser }: ProfileViewProps) {
 
       {/* Content */}
       <View style={{ flex: 1 }}>
-        {activeTab === 'created' ? (
-          <MasonryGrid pins={pins} isLoading={isLoading} emptyMessage="No pins created yet." />
+        {activeTab === "created" ? (
+          <MasonryGrid
+            pins={pins}
+            isLoading={isLoading}
+            emptyMessage="No pins created yet."
+          />
         ) : (
-          <View style={{ paddingHorizontal: spacing.md, flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md }}>
+          <View
+            style={{
+              paddingHorizontal: spacing.md,
+              flexDirection: "row",
+              flexWrap: "wrap",
+              gap: spacing.md,
+            }}
+          >
             {/* All Pins Card */}
             {(isCurrentUser || !displayProfile.all_saves_private) && (
               <TouchableOpacity
                 onPress={() => router.push(`/saved-pins?userId=${userId}`)}
-                style={{ width: '47%', aspectRatio: 1, backgroundColor: colors.surface, borderRadius: radius.lg, overflow: 'hidden' }}
+                style={{
+                  width: "47%",
+                  aspectRatio: 1,
+                  backgroundColor: colors.surface,
+                  borderRadius: radius.lg,
+                  overflow: "hidden",
+                }}
               >
                 {recentSaves.length > 0 && (
-                  <View style={{ ...StyleSheet.absoluteFillObject, flexDirection: 'row', flexWrap: 'wrap' }}>
+                  <View
+                    style={{
+                      ...StyleSheet.absoluteFillObject,
+                      flexDirection: "row",
+                      flexWrap: "wrap",
+                    }}
+                  >
                     {recentSaves.map((url, i) => (
-                      <View 
+                      <View
                         key={i}
-                        style={{ 
-                          width: recentSaves.length === 1 ? '100%' : '50%', 
-                          height: recentSaves.length <= 2 ? '100%' : '50%' 
+                        style={{
+                          width: recentSaves.length === 1 ? "100%" : "50%",
+                          height: recentSaves.length <= 2 ? "100%" : "50%",
                         }}
                       >
-                        <Image 
-                          source={{ uri: url }} 
+                        <Image
+                          source={{ uri: url }}
                           contentFit="cover"
-                          style={{ width: '100%', height: '100%' }} 
+                          style={{ width: "100%", height: "100%" }}
                         />
                       </View>
                     ))}
-                    <View style={{ ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.3)' }} />
+                    <View
+                      style={{
+                        ...StyleSheet.absoluteFillObject,
+                        backgroundColor: "rgba(0,0,0,0.3)",
+                      }}
+                    />
                   </View>
                 )}
-                <View style={{ ...StyleSheet.absoluteFillObject, padding: spacing.md, justifyContent: 'flex-end', zIndex: 10, elevation: 10 }} pointerEvents="none">
-                  <Text style={{ fontFamily: typography.families.headingMedium, fontSize: typography.scale.bodyLarge, color: recentSaves.length > 0 ? '#fff' : colors.text }}>All Pins</Text>
+                <View
+                  style={{
+                    ...StyleSheet.absoluteFillObject,
+                    padding: spacing.md,
+                    justifyContent: "flex-end",
+                    zIndex: 10,
+                    elevation: 10,
+                  }}
+                  pointerEvents="none"
+                >
+                  <Text
+                    style={{
+                      fontFamily: typography.families.headingMedium,
+                      fontSize: typography.scale.bodyLarge,
+                      color: recentSaves.length > 0 ? "#fff" : colors.text,
+                    }}
+                  >
+                    Quck Saves
+                  </Text>
                 </View>
               </TouchableOpacity>
             )}
 
             {/* Boards Grid */}
-            {boards.map(board => (
+            {boards.map((board) => (
               <TouchableOpacity
                 key={board.id}
                 onPress={() => router.push(`/board/${board.id}`)}
-                style={{ width: '47%', aspectRatio: 1, backgroundColor: colors.surface, borderRadius: radius.lg, overflow: 'hidden' }}
+                style={{
+                  width: "47%",
+                  aspectRatio: 1,
+                  backgroundColor: colors.surface,
+                  borderRadius: radius.lg,
+                  overflow: "hidden",
+                }}
               >
                 {/* Simplified Board Card */}
-                <View style={{ flex: 1, padding: spacing.md, justifyContent: 'flex-end' }}>
-                  <Text style={{ fontFamily: typography.families.headingMedium, fontSize: typography.scale.bodyLarge, color: colors.text }}>{board.name}</Text>
-                  {board.is_private && <Text style={{ fontFamily: typography.families.body, fontSize: typography.scale.caption, color: colors.textSecondary }}>Private</Text>}
+                <View
+                  style={{
+                    flex: 1,
+                    padding: spacing.md,
+                    justifyContent: "flex-end",
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontFamily: typography.families.headingMedium,
+                      fontSize: typography.scale.bodyLarge,
+                      color: colors.text,
+                    }}
+                  >
+                    {board.name}
+                  </Text>
+                  {board.is_private && (
+                    <Text
+                      style={{
+                        fontFamily: typography.families.body,
+                        fontSize: typography.scale.caption,
+                        color: colors.textSecondary,
+                      }}
+                    >
+                      Private
+                    </Text>
+                  )}
                 </View>
               </TouchableOpacity>
             ))}

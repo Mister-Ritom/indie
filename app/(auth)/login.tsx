@@ -89,7 +89,6 @@ export default function LoginScreen() {
     }
     setGoogleLoading(false);
   };
-
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       <KeyboardAvoidingView
@@ -105,228 +104,220 @@ export default function LoginScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* Logo */}
-          <View style={{ alignItems: "center", marginBottom: spacing.xxl }}>
-            <Text
-              style={{
-                fontFamily: typography.families.headingBold,
-                fontSize: 48,
-                color: colors.primary,
-              }}
-            >
-              Indie
-            </Text>
-            <Text
-              style={{
-                fontFamily: typography.families.body,
-                fontSize: typography.scale.bodyLarge,
-                color: colors.textSecondary,
-                marginTop: spacing.xs,
-              }}
-            >
-              Discover ideas you'll love
-            </Text>
-          </View>
-
-          {/* Google Sign In */}
-          <TouchableOpacity
-            onPress={handleGoogleSignIn}
-            disabled={googleLoading}
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: spacing.sm,
-              borderWidth: 1.5,
-              borderColor: colors.border,
-              borderRadius: radius.pill,
-              paddingVertical: 14,
-              marginBottom: spacing.md,
-              opacity: googleLoading ? 0.6 : 1,
-            }}
-          >
-            <Text style={{ fontSize: 18 }}>🌐</Text>
-            <Text
-              style={{
-                fontFamily: typography.families.bodyMedium,
-                fontSize: typography.scale.body,
-                color: colors.text,
-              }}
-            >
-              Continue with Google
-            </Text>
-          </TouchableOpacity>
-
-          {/* Divider */}
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              marginBottom: spacing.md,
-            }}
-          >
-            <View
-              style={{ flex: 1, height: 1, backgroundColor: colors.border }}
-            />
-            <Text
-              style={{
-                fontFamily: typography.families.body,
-                fontSize: typography.scale.caption,
-                color: colors.textSecondary,
-                marginHorizontal: spacing.sm,
-              }}
-            >
-              or continue with email
-            </Text>
-            <View
-              style={{ flex: 1, height: 1, backgroundColor: colors.border }}
-            />
-          </View>
-
-          {/* Email/Password */}
-          <View style={{ gap: spacing.md }}>
-            <Controller
-              control={control}
-              name="email"
-              render={({ field: { onChange, onBlur, value } }) => (
-                <Input
-                  label="Email"
-                  placeholder="you@example.com"
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoComplete="email"
-                  value={value}
-                  onChangeText={onChange}
-                  onBlur={onBlur}
-                  error={errors.email?.message}
-                  leftIcon={<Mail size={18} color={colors.iconMuted} />}
-                />
-              )}
-            />
-            <Controller
-              control={control}
-              name="password"
-              render={({ field: { onChange, onBlur, value } }) => (
-                <Input
-                  label="Password"
-                  placeholder="Your password"
-                  secureTextEntry
-                  autoComplete="current-password"
-                  value={value}
-                  onChangeText={onChange}
-                  onBlur={onBlur}
-                  error={errors.password?.message}
-                  leftIcon={<Lock size={18} color={colors.iconMuted} />}
-                />
-              )}
-            />
-
-            <TouchableOpacity
-              onPress={() => router.push("/(auth)/forgot-password")}
-              style={{ alignSelf: "flex-end" }}
-            >
+          {/* This wrapper keeps the form contained and centered on desktop */}
+          <View style={{ width: "100%", maxWidth: 420, alignSelf: "center" }}>
+            {/* Logo */}
+            <View style={{ alignItems: "center", marginBottom: spacing.xxl }}>
               <Text
                 style={{
-                  fontFamily: typography.families.bodyMedium,
-                  fontSize: typography.scale.bodySmall,
+                  fontFamily: typography.families.headingBold,
+                  fontSize: 48,
                   color: colors.primary,
                 }}
               >
-                Forgot password?
+                Indie
               </Text>
-            </TouchableOpacity>
-
-            {error && (
-              <View
+              <Text
                 style={{
-                  backgroundColor: colors.error + "18",
-                  borderRadius: radius.md,
-                  padding: spacing.md,
+                  fontFamily: typography.families.body,
+                  fontSize: typography.scale.bodyLarge,
+                  color: colors.textSecondary,
+                  marginTop: spacing.xs,
                 }}
               >
-                <Text
-                  style={{
-                    fontFamily: typography.families.body,
-                    fontSize: typography.scale.bodySmall,
-                    color: colors.error,
-                  }}
-                >
-                  {error}
-                </Text>
-              </View>
-            )}
+                Discover ideas you'll love
+              </Text>
+            </View>
 
-            <Button
-              label="Log in"
-              onPress={handleSubmit(onSubmit)}
-              isLoading={isLoading}
-              fullWidth
-              size="lg"
-            />
-          </View>
-
-          {/* Sign up link */}
-          <View
-            style={{
-              flexDirection: "row",
-              justifyContent: "center",
-              marginTop: spacing.xl,
-              gap: 4,
-            }}
-          >
-            <Text
+            {/* Google Sign In */}
+            <TouchableOpacity
+              onPress={handleGoogleSignIn}
+              disabled={googleLoading}
               style={{
-                fontFamily: typography.families.body,
-                fontSize: typography.scale.body,
-                color: colors.textSecondary,
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: spacing.sm,
+                borderWidth: 1.5,
+                borderColor: colors.border,
+                borderRadius: radius.pill,
+                paddingVertical: 14,
+                marginBottom: spacing.md,
+                opacity: googleLoading ? 0.6 : 1,
               }}
             >
-              Don't have an account?
-            </Text>
-            <TouchableOpacity onPress={() => router.push("/(auth)/signup")}>
+              <Text style={{ fontSize: 18 }}>🌐</Text>
               <Text
                 style={{
                   fontFamily: typography.families.bodyMedium,
                   fontSize: typography.scale.body,
-                  color: colors.primary,
+                  color: colors.text,
                 }}
               >
-                Sign up
+                Continue with Google
               </Text>
             </TouchableOpacity>
-          </View>
 
-          {/* Legal */}
-          <View
-            style={{
-              flexDirection: "row",
-              justifyContent: "center",
-              flexWrap: "wrap",
-              marginTop: spacing.md,
-              gap: 4,
-            }}
-          >
-            <TouchableOpacity onPress={() => router.push("/legal/terms")}>
-              <Text
-                style={{
-                  fontFamily: typography.families.body,
-                  fontSize: typography.scale.caption,
-                  color: colors.textTertiary,
-                }}
-              >
-                Terms
-              </Text>
-            </TouchableOpacity>
-            <Text
+            {/* Divider */}
+            <View
               style={{
-                fontFamily: typography.families.body,
-                fontSize: typography.scale.caption,
-                color: colors.textTertiary,
+                flexDirection: "row",
+                alignItems: "center",
+                marginBottom: spacing.md,
               }}
             >
-              ·
-            </Text>
-            <TouchableOpacity onPress={() => router.push("/legal/privacy")}>
+              <View
+                style={{ flex: 1, height: 1, backgroundColor: colors.border }}
+              />
+              <Text
+                style={{
+                  fontFamily: typography.families.body,
+                  fontSize: typography.scale.caption,
+                  color: colors.textSecondary,
+                  marginHorizontal: spacing.sm,
+                }}
+              >
+                or continue with email
+              </Text>
+              <View
+                style={{ flex: 1, height: 1, backgroundColor: colors.border }}
+              />
+            </View>
+
+            {/* Email/Password */}
+            <View style={{ gap: spacing.md }}>
+              <Controller
+                control={control}
+                name="email"
+                render={({ field: { onChange, onBlur, value } }) => (
+                  <Input
+                    label="Email"
+                    placeholder="you@example.com"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoComplete="email"
+                    value={value}
+                    onChangeText={onChange}
+                    onBlur={onBlur}
+                    error={errors.email?.message}
+                    leftIcon={<Mail size={18} color={colors.iconMuted} />}
+                  />
+                )}
+              />
+              <Controller
+                control={control}
+                name="password"
+                render={({ field: { onChange, onBlur, value } }) => (
+                  <Input
+                    label="Password"
+                    placeholder="Your password"
+                    secureTextEntry
+                    autoComplete="current-password"
+                    value={value}
+                    onChangeText={onChange}
+                    onBlur={onBlur}
+                    error={errors.password?.message}
+                    leftIcon={<Lock size={18} color={colors.iconMuted} />}
+                  />
+                )}
+              />
+
+              <TouchableOpacity
+                onPress={() => router.push("/(auth)/forgot-password")}
+                style={{ alignSelf: "flex-end" }}
+              >
+                <Text
+                  style={{
+                    fontFamily: typography.families.bodyMedium,
+                    fontSize: typography.scale.bodySmall,
+                    color: colors.primary,
+                  }}
+                >
+                  Forgot password?
+                </Text>
+              </TouchableOpacity>
+
+              {error && (
+                <View
+                  style={{
+                    backgroundColor: colors.error + "18",
+                    borderRadius: radius.md,
+                    padding: spacing.md,
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontFamily: typography.families.body,
+                      fontSize: typography.scale.bodySmall,
+                      color: colors.error,
+                    }}
+                  >
+                    {error}
+                  </Text>
+                </View>
+              )}
+
+              <Button
+                label="Log in"
+                onPress={handleSubmit(onSubmit)}
+                isLoading={isLoading}
+                fullWidth
+                size="lg"
+              />
+            </View>
+
+            {/* Sign up link */}
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "center",
+                marginTop: spacing.xl,
+                gap: 4,
+              }}
+            >
+              <Text
+                style={{
+                  fontFamily: typography.families.body,
+                  fontSize: typography.scale.body,
+                  color: colors.textSecondary,
+                }}
+              >
+                Don't have an account?
+              </Text>
+              <TouchableOpacity onPress={() => router.push("/(auth)/signup")}>
+                <Text
+                  style={{
+                    fontFamily: typography.families.bodyMedium,
+                    fontSize: typography.scale.body,
+                    color: colors.primary,
+                  }}
+                >
+                  Sign up
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Legal */}
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "center",
+                flexWrap: "wrap",
+                marginTop: spacing.md,
+                gap: 4,
+              }}
+            >
+              <TouchableOpacity onPress={() => router.push("/legal/terms")}>
+                <Text
+                  style={{
+                    fontFamily: typography.families.body,
+                    fontSize: typography.scale.caption,
+                    color: colors.textTertiary,
+                  }}
+                >
+                  Terms
+                </Text>
+              </TouchableOpacity>
               <Text
                 style={{
                   fontFamily: typography.families.body,
@@ -334,9 +325,20 @@ export default function LoginScreen() {
                   color: colors.textTertiary,
                 }}
               >
-                Privacy
+                ·
               </Text>
-            </TouchableOpacity>
+              <TouchableOpacity onPress={() => router.push("/legal/privacy")}>
+                <Text
+                  style={{
+                    fontFamily: typography.families.body,
+                    fontSize: typography.scale.caption,
+                    color: colors.textTertiary,
+                  }}
+                >
+                  Privacy
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>

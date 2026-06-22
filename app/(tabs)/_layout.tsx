@@ -7,7 +7,7 @@ import { useBreakpoint } from "@/hooks/useBreakpoint";
 import { WebSidebar } from "@/components/layout/WebSidebar";
 
 export default function TabLayout() {
-  const { colors, typography } = useTheme();
+  const { colors } = useTheme();
   const { showSidebar } = useBreakpoint();
 
   return (

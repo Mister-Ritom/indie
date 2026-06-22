@@ -99,7 +99,6 @@ export default function SignupScreen() {
     }
     setGoogleLoading(false);
   };
-
   if (success) {
     return (
       <SafeAreaView
@@ -111,36 +110,39 @@ export default function SignupScreen() {
           padding: spacing.xl,
         }}
       >
-        <Text style={{ fontSize: 48 }}>📬</Text>
-        <Text
-          style={{
-            fontFamily: typography.families.heading,
-            fontSize: typography.scale.h2,
-            color: colors.text,
-            marginTop: spacing.lg,
-            textAlign: "center",
-          }}
-        >
-          Check your email
-        </Text>
-        <Text
-          style={{
-            fontFamily: typography.families.body,
-            fontSize: typography.scale.body,
-            color: colors.textSecondary,
-            marginTop: spacing.sm,
-            textAlign: "center",
-          }}
-        >
-          We sent a confirmation link to your inbox. Click it to activate your
-          account.
-        </Text>
-        <Button
-          label="Back to login"
-          onPress={() => router.replace("/(auth)/login")}
-          variant="outline"
-          style={{ marginTop: spacing.xl }}
-        />
+        {/* Added wrapper for confirmation state to look centered and elegant on desktop */}
+        <View style={{ width: "100%", maxWidth: 420, alignItems: "center" }}>
+          <Text style={{ fontSize: 48 }}>📬</Text>
+          <Text
+            style={{
+              fontFamily: typography.families.heading,
+              fontSize: typography.scale.h2,
+              color: colors.text,
+              marginTop: spacing.lg,
+              textAlign: "center",
+            }}
+          >
+            Check your email
+          </Text>
+          <Text
+            style={{
+              fontFamily: typography.families.body,
+              fontSize: typography.scale.body,
+              color: colors.textSecondary,
+              marginTop: spacing.sm,
+              textAlign: "center",
+            }}
+          >
+            We sent a confirmation link to your inbox. Click it to activate your
+            account.
+          </Text>
+          <Button
+            label="Back to login"
+            onPress={() => router.replace("/(auth)/login")}
+            variant="outline"
+            style={{ marginTop: spacing.xl }}
+          />
+        </View>
       </SafeAreaView>
     );
   }
@@ -160,215 +162,217 @@ export default function SignupScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <View style={{ alignItems: "center", marginBottom: spacing.xl }}>
-            <Text
-              style={{
-                fontFamily: typography.families.headingBold,
-                fontSize: 40,
-                color: colors.primary,
-              }}
-            >
-              Indie
-            </Text>
-            <Text
-              style={{
-                fontFamily: typography.families.body,
-                fontSize: typography.scale.body,
-                color: colors.textSecondary,
-                marginTop: spacing.xs,
-              }}
-            >
-              Create your account
-            </Text>
-          </View>
-
-          {/* Google */}
-          <TouchableOpacity
-            onPress={handleGoogleSignIn}
-            disabled={googleLoading}
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: spacing.sm,
-              borderWidth: 1.5,
-              borderColor: colors.border,
-              borderRadius: radius.pill,
-              paddingVertical: 14,
-              marginBottom: spacing.md,
-              opacity: googleLoading ? 0.6 : 1,
-            }}
-          >
-            <Text style={{ fontSize: 18 }}>🌐</Text>
-            <Text
-              style={{
-                fontFamily: typography.families.bodyMedium,
-                fontSize: typography.scale.body,
-                color: colors.text,
-              }}
-            >
-              Sign up with Google
-            </Text>
-          </TouchableOpacity>
-
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              marginBottom: spacing.md,
-            }}
-          >
-            <View
-              style={{ flex: 1, height: 1, backgroundColor: colors.border }}
-            />
-            <Text
-              style={{
-                fontFamily: typography.families.body,
-                fontSize: typography.scale.caption,
-                color: colors.textSecondary,
-                marginHorizontal: spacing.sm,
-              }}
-            >
-              or with email
-            </Text>
-            <View
-              style={{ flex: 1, height: 1, backgroundColor: colors.border }}
-            />
-          </View>
-
-          <View style={{ gap: spacing.md }}>
-            <Controller
-              control={control}
-              name="full_name"
-              render={({ field: { onChange, onBlur, value } }) => (
-                <Input
-                  label="Full name"
-                  placeholder="Jane Doe"
-                  autoCapitalize="words"
-                  value={value}
-                  onChangeText={(v) => {
-                    onChange(v);
-                    // Auto-suggest username from name
-                    setValue("username", usernameFromName(v), {
-                      shouldValidate: false,
-                    });
-                  }}
-                  onBlur={onBlur}
-                  error={errors.full_name?.message}
-                  leftIcon={<User size={18} color={colors.iconMuted} />}
-                />
-              )}
-            />
-            <Controller
-              control={control}
-              name="username"
-              render={({ field: { onChange, onBlur, value } }) => (
-                <Input
-                  label="Username"
-                  placeholder="jane_doe"
-                  autoCapitalize="none"
-                  value={value}
-                  onChangeText={onChange}
-                  onBlur={onBlur}
-                  error={errors.username?.message}
-                  leftIcon={<AtSign size={18} color={colors.iconMuted} />}
-                  hint="Only lowercase letters, numbers, underscores"
-                />
-              )}
-            />
-            <Controller
-              control={control}
-              name="email"
-              render={({ field: { onChange, onBlur, value } }) => (
-                <Input
-                  label="Email"
-                  placeholder="you@example.com"
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoComplete="email"
-                  value={value}
-                  onChangeText={onChange}
-                  onBlur={onBlur}
-                  error={errors.email?.message}
-                  leftIcon={<Mail size={18} color={colors.iconMuted} />}
-                />
-              )}
-            />
-            <Controller
-              control={control}
-              name="password"
-              render={({ field: { onChange, onBlur, value } }) => (
-                <Input
-                  label="Password"
-                  placeholder="Min 8 chars, 1 uppercase, 1 number"
-                  secureTextEntry
-                  autoComplete="new-password"
-                  value={value}
-                  onChangeText={onChange}
-                  onBlur={onBlur}
-                  error={errors.password?.message}
-                  leftIcon={<Lock size={18} color={colors.iconMuted} />}
-                />
-              )}
-            />
-
-            {error && (
-              <View
+          {/* Main content wrapper constraint */}
+          <View style={{ width: "100%", maxWidth: 420, alignSelf: "center" }}>
+            <View style={{ alignItems: "center", marginBottom: spacing.xl }}>
+              <Text
                 style={{
-                  backgroundColor: colors.error + "18",
-                  borderRadius: radius.md,
-                  padding: spacing.md,
+                  fontFamily: typography.families.headingBold,
+                  fontSize: 40,
+                  color: colors.primary,
                 }}
               >
-                <Text
-                  style={{
-                    fontFamily: typography.families.body,
-                    fontSize: typography.scale.bodySmall,
-                    color: colors.error,
-                  }}
-                >
-                  {error}
-                </Text>
-              </View>
-            )}
+                Indie
+              </Text>
+              <Text
+                style={{
+                  fontFamily: typography.families.body,
+                  fontSize: typography.scale.body,
+                  color: colors.textSecondary,
+                  marginTop: spacing.xs,
+                }}
+              >
+                Create your account
+              </Text>
+            </View>
 
-            <Button
-              label="Create account"
-              onPress={handleSubmit(onSubmit)}
-              isLoading={isLoading}
-              fullWidth
-              size="lg"
-            />
-          </View>
-
-          <View
-            style={{
-              flexDirection: "row",
-              justifyContent: "center",
-              marginTop: spacing.xl,
-              gap: 4,
-            }}
-          >
-            <Text
+            {/* Google */}
+            <TouchableOpacity
+              onPress={handleGoogleSignIn}
+              disabled={googleLoading}
               style={{
-                fontFamily: typography.families.body,
-                fontSize: typography.scale.body,
-                color: colors.textSecondary,
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: spacing.sm,
+                borderWidth: 1.5,
+                borderColor: colors.border,
+                borderRadius: radius.pill,
+                paddingVertical: 14,
+                marginBottom: spacing.md,
+                opacity: googleLoading ? 0.6 : 1,
               }}
             >
-              Already have an account?
-            </Text>
-            <TouchableOpacity onPress={() => router.push("/(auth)/login")}>
+              <Text style={{ fontSize: 18 }}>🌐</Text>
               <Text
                 style={{
                   fontFamily: typography.families.bodyMedium,
                   fontSize: typography.scale.body,
-                  color: colors.primary,
+                  color: colors.text,
                 }}
               >
-                Log in
+                Sign up with Google
               </Text>
             </TouchableOpacity>
+
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                marginBottom: spacing.md,
+              }}
+            >
+              <View
+                style={{ flex: 1, height: 1, backgroundColor: colors.border }}
+              />
+              <Text
+                style={{
+                  fontFamily: typography.families.body,
+                  fontSize: typography.scale.caption,
+                  color: colors.textSecondary,
+                  marginHorizontal: spacing.sm,
+                }}
+              >
+                or with email
+              </Text>
+              <View
+                style={{ flex: 1, height: 1, backgroundColor: colors.border }}
+              />
+            </View>
+
+            <View style={{ gap: spacing.md }}>
+              <Controller
+                control={control}
+                name="full_name"
+                render={({ field: { onChange, onBlur, value } }) => (
+                  <Input
+                    label="Full name"
+                    placeholder="Jane Doe"
+                    autoCapitalize="words"
+                    value={value}
+                    onChangeText={(v) => {
+                      onChange(v);
+                      setValue("username", usernameFromName(v), {
+                        shouldValidate: false,
+                      });
+                    }}
+                    onBlur={onBlur}
+                    error={errors.full_name?.message}
+                    leftIcon={<User size={18} color={colors.iconMuted} />}
+                  />
+                )}
+              />
+              <Controller
+                control={control}
+                name="username"
+                render={({ field: { onChange, onBlur, value } }) => (
+                  <Input
+                    label="Username"
+                    placeholder="jane_doe"
+                    autoCapitalize="none"
+                    value={value}
+                    onChangeText={onChange}
+                    onBlur={onBlur}
+                    error={errors.username?.message}
+                    leftIcon={<AtSign size={18} color={colors.iconMuted} />}
+                    hint="Only lowercase letters, numbers, underscores"
+                  />
+                )}
+              />
+              <Controller
+                control={control}
+                name="email"
+                render={({ field: { onChange, onBlur, value } }) => (
+                  <Input
+                    label="Email"
+                    placeholder="you@example.com"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoComplete="email"
+                    value={value}
+                    onChangeText={onChange}
+                    onBlur={onBlur}
+                    error={errors.email?.message}
+                    leftIcon={<Mail size={18} color={colors.iconMuted} />}
+                  />
+                )}
+              />
+              <Controller
+                control={control}
+                name="password"
+                render={({ field: { onChange, onBlur, value } }) => (
+                  <Input
+                    label="Password"
+                    placeholder="Min 8 chars, 1 uppercase, 1 number"
+                    secureTextEntry
+                    autoComplete="new-password"
+                    value={value}
+                    onChangeText={onChange}
+                    onBlur={onBlur}
+                    error={errors.password?.message}
+                    leftIcon={<Lock size={18} color={colors.iconMuted} />}
+                  />
+                )}
+              />
+
+              {error && (
+                <View
+                  style={{
+                    backgroundColor: colors.error + "18",
+                    borderRadius: radius.md,
+                    padding: spacing.md,
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontFamily: typography.families.body,
+                      fontSize: typography.scale.bodySmall,
+                      color: colors.error,
+                    }}
+                  >
+                    {error}
+                  </Text>
+                </View>
+              )}
+
+              <Button
+                label="Create account"
+                onPress={handleSubmit(onSubmit)}
+                isLoading={isLoading}
+                fullWidth
+                size="lg"
+              />
+            </View>
+
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "center",
+                marginTop: spacing.xl,
+                gap: 4,
+              }}
+            >
+              <Text
+                style={{
+                  fontFamily: typography.families.body,
+                  fontSize: typography.scale.body,
+                  color: colors.textSecondary,
+                }}
+              >
+                Already have an account?
+              </Text>
+              <TouchableOpacity onPress={() => router.push("/(auth)/login")}>
+                <Text
+                  style={{
+                    fontFamily: typography.families.bodyMedium,
+                    fontSize: typography.scale.body,
+                    color: colors.primary,
+                  }}
+                >
+                  Log in
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>

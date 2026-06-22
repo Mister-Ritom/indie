@@ -1,9 +1,9 @@
-import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
-import { router } from 'expo-router';
-import { useTheme } from '@/hooks/useTheme';
-import { Avatar } from '@/components/ui/Avatar';
-import type { Profile } from '@/types/database';
+import React from "react";
+import { View, Text, TouchableOpacity } from "react-native";
+import { router } from "expo-router";
+import { useTheme } from "@/hooks/useTheme";
+import { Avatar } from "@/components/ui/Avatar";
+import type { Profile } from "@/types/database";
 
 interface UserSearchCardProps {
   profile: Profile;
@@ -16,26 +16,30 @@ export function UserSearchCard({ profile, columnWidth }: UserSearchCardProps) {
   return (
     <TouchableOpacity
       activeOpacity={0.8}
-      onPress={() => router.push(`/user/${profile.id}`)}
+      onPress={() => router.push(`/user/${profile.username}`)}
       style={{
         width: columnWidth,
         backgroundColor: colors.surfaceElevated,
         borderRadius: radius.lg,
         padding: spacing.md,
-        alignItems: 'center',
+        alignItems: "center",
         marginBottom: spacing.md, // spacing matching PinCard
         borderWidth: 1,
         borderColor: colors.border,
       }}
     >
-      <Avatar uri={profile.avatar_url} name={profile.full_name || profile.username} size="lg" />
+      <Avatar
+        uri={profile.avatar_url}
+        name={profile.full_name || profile.username}
+        size="lg"
+      />
       <Text
         style={{
           fontFamily: typography.families.headingBold,
           fontSize: typography.scale.body,
           color: colors.text,
           marginTop: spacing.sm,
-          textAlign: 'center',
+          textAlign: "center",
         }}
         numberOfLines={1}
       >
@@ -48,7 +52,7 @@ export function UserSearchCard({ profile, columnWidth }: UserSearchCardProps) {
             fontSize: typography.scale.bodySmall,
             color: colors.textSecondary,
             marginTop: 2,
-            textAlign: 'center',
+            textAlign: "center",
           }}
           numberOfLines={1}
         >

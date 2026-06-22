@@ -8,8 +8,8 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[];
 
-export type MediaType = 'image' | 'gif';
-export type PinVariant = 'original' | '2160' | '1440' | '720' | '360' | 'thumb';
+export type MediaType = "image" | "gif";
+export type PinVariant = "original" | "2160" | "1440" | "720" | "360" | "thumb";
 
 export interface AiLabel {
   label: string;
@@ -253,7 +253,7 @@ export interface Database {
           id: string;
           user_id: string;
           actor_id: string;
-          type: 'like' | 'comment' | 'follow';
+          type: "like" | "comment" | "follow";
           pin_id: string | null;
           read: boolean;
           created_at: string;
@@ -262,7 +262,7 @@ export interface Database {
           id?: string;
           user_id: string;
           actor_id: string;
-          type: 'like' | 'comment' | 'follow';
+          type: "like" | "comment" | "follow";
           pin_id?: string | null;
           read?: boolean;
           created_at?: string;
@@ -365,40 +365,42 @@ export interface Database {
 }
 
 // Domain types (enriched rows used by UI)
-export type Profile = Database['public']['Tables']['profiles']['Row'];
-export type Interest = Database['public']['Tables']['interests']['Row'];
-export type UserInterest = Database['public']['Tables']['user_interests']['Row'];
-export type Board = Database['public']['Tables']['boards']['Row'];
-export type Pin = Database['public']['Tables']['pins']['Row'];
-export type PinAsset = Database['public']['Tables']['pin_assets']['Row'];
-export type Like = Database['public']['Tables']['likes']['Row'];
-export type Comment = Database['public']['Tables']['comments']['Row'];
-export type Follow = Database['public']['Tables']['follows']['Row'];
-export type Save = Database['public']['Tables']['saves']['Row'];
-export type PinView = Database['public']['Tables']['pin_views']['Row'];
-export type UserInterestScore = Database['public']['Tables']['user_interest_scores']['Row'];
+export type Profile = Database["public"]["Tables"]["profiles"]["Row"];
+export type Interest = Database["public"]["Tables"]["interests"]["Row"];
+export type UserInterest =
+  Database["public"]["Tables"]["user_interests"]["Row"];
+export type Board = Database["public"]["Tables"]["boards"]["Row"];
+export type Pin = Database["public"]["Tables"]["pins"]["Row"];
+export type PinAsset = Database["public"]["Tables"]["pin_assets"]["Row"];
+export type Like = Database["public"]["Tables"]["likes"]["Row"];
+export type Comment = Database["public"]["Tables"]["comments"]["Row"];
+export type Follow = Database["public"]["Tables"]["follows"]["Row"];
+export type Save = Database["public"]["Tables"]["saves"]["Row"];
+export type PinView = Database["public"]["Tables"]["pin_views"]["Row"];
+export type UserInterestScore =
+  Database["public"]["Tables"]["user_interest_scores"]["Row"];
 
 export interface FeedPin extends Pin {
-  profile: Pick<Profile, 'id' | 'username' | 'avatar_url' | 'full_name'>;
+  profile: Pick<Profile, "id" | "username" | "avatar_url" | "full_name">;
   assets: PinAsset[];
   likes_count: number;
   saves_count: number;
   comments_count: number;
   is_liked: boolean;
   is_saved: boolean;
-  board?: Pick<Board, 'id' | 'name'> | null;
-  interest?: Pick<Interest, 'id' | 'name' | 'slug'> | null;
+  board?: Pick<Board, "id" | "name"> | null;
+  interest?: Pick<Interest, "id" | "name" | "slug"> | null;
 }
 
 export interface PinDetail extends FeedPin {
   comments: (Comment & {
-    profile: Pick<Profile, 'id' | 'username' | 'avatar_url'>;
+    profile: Pick<Profile, "id" | "username" | "avatar_url">;
   })[];
   related_pins: FeedPin[];
 }
 
 export interface BoardWithPins extends Board {
-  profile: Pick<Profile, 'id' | 'username' | 'avatar_url'>;
+  profile: Pick<Profile, "id" | "username" | "avatar_url">;
   pins: FeedPin[];
   pins_count: number;
 }
@@ -411,13 +413,13 @@ export interface ProfileWithStats extends Profile {
   is_following: boolean;
 }
 
-export type NotificationType = 'like' | 'comment' | 'follow';
+export type NotificationType = "like" | "comment" | "follow";
 
 export interface Notification {
   id: string;
   type: NotificationType;
-  actor: Pick<Profile, 'id' | 'username' | 'avatar_url'>;
-  pin?: Pick<Pin, 'id' | 'title' | 'dominant_color'> & { thumb_url?: string };
+  actor: Pick<Profile, "id" | "username" | "avatar_url">;
+  pin?: Pick<Pin, "id" | "title" | "dominant_color"> & { thumb_url?: string };
   created_at: string;
   read: boolean;
 }
