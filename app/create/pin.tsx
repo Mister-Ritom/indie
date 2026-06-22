@@ -8,6 +8,7 @@ import {
   Platform,
   Image,
   ActivityIndicator,
+  useWindowDimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
@@ -37,6 +38,7 @@ export default function CreatePinScreen() {
   const { colors, spacing, typography, radius } = useTheme();
   const { showSidebar } = useBreakpoint();
   const { user } = useAuthStore();
+  const { width: screenWidth } = useWindowDimensions();
 
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [imageWidth, setImageWidth] = useState(0);
@@ -107,7 +109,12 @@ export default function CreatePinScreen() {
     const asset = await pickImageFromGallery();
     if (asset) {
       const isGif = asset.uri.toLowerCase().endsWith(".gif");
-      const { uri, width, height } = await compressImage(asset.uri, isGif);
+      const { uri, width, height } = await compressImage(
+        asset.uri,
+        isGif,
+        asset.width ?? 0,
+        asset.height ?? 0,
+      );
       setImageUri(uri);
       setImageWidth(width > 0 ? width : (asset.width ?? 0));
       setImageHeight(height > 0 ? height : (asset.height ?? 0));
@@ -123,7 +130,12 @@ export default function CreatePinScreen() {
     const asset = await takePhoto();
     if (asset) {
       const isGif = asset.uri.toLowerCase().endsWith(".gif");
-      const { uri, width, height } = await compressImage(asset.uri, isGif);
+      const { uri, width, height } = await compressImage(
+        asset.uri,
+        isGif,
+        asset.width ?? 0,
+        asset.height ?? 0,
+      );
       setImageUri(uri);
       setImageWidth(width > 0 ? width : (asset.width ?? 0));
       setImageHeight(height > 0 ? height : (asset.height ?? 0));
@@ -203,84 +215,117 @@ export default function CreatePinScreen() {
             }}
           >
             {/* Image Picker */}
-            <View style={{ flex: 1, minHeight: 400 }}>
-              {imageUri ? (
-                <View
-                  style={{
-                    flex: 1,
-                    position: "relative",
-                    borderRadius: radius.lg,
-                    overflow: "hidden",
-                    backgroundColor: colors.surface,
-                  }}
-                >
-                  <Image
-                    source={{ uri: imageUri }}
-                    style={{ flex: 1, width: "100%", height: "100%" }}
-                    resizeMode="contain"
-                  />
-                  <TouchableOpacity
-                    onPress={() => setImageUri(null)}
-                    style={{
-                      position: "absolute",
-                      top: spacing.md,
-                      right: spacing.md,
-                      backgroundColor: colors.overlay,
-                      padding: 8,
-                      borderRadius: radius.pill,
-                    }}
-                  >
-                    <X size={20} color="#fff" />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={() => {
-                      setOriginalImage(imageUri, imageWidth, imageHeight);
-                      router.push("/photo-editor");
-                    }}
-                    style={{
-                      position: "absolute",
-                      top: spacing.md,
-                      right: spacing.md + 48,
-                      backgroundColor: "rgba(28,28,28,0.85)",
-                      padding: 8,
-                      borderRadius: radius.pill,
-                    }}
-                  >
-                    <Pencil size={18} color="#fff" />
-                  </TouchableOpacity>
+            {(() => {
+              // Use explicit pixel dimensions — identical approach to photo-editor.tsx.
+              // flex:1 inside a ScrollView collapses to 0px on Android, making the
+              // container AND all its absolute-positioned children (X, Pencil) invisible.
+              const containerWidth = screenWidth - spacing.xl * 2;
+              const aspect =
+                imageWidth > 0 && imageHeight > 0
+                  ? imageWidth / imageHeight
+                  : 4 / 5;
+              const containerHeight = Math.min(containerWidth / aspect, 500);
+              return (
+                <View style={{ width: containerWidth }}>
+                  {imageUri ? (
+                    // Outer container: NO overflow:hidden — that prop clips ALL rendering
+                    // to nothing on Android inside a ScrollView (touch still works, visuals don't).
+                    // Only the Image gets its own overflow:hidden wrapper for border-radius clipping.
+                    <View
+                      style={{
+                        width: containerWidth,
+                        height: containerHeight,
+                      }}
+                      collapsable={false}
+                      renderToHardwareTextureAndroid
+                    >
+                      {/* Image clip wrapper — overflow:hidden only here */}
+                      <View
+                        style={{
+                          position: "absolute",
+                          top: 0,
+                          left: 0,
+                          width: containerWidth,
+                          height: containerHeight,
+                          borderRadius: radius.lg,
+                          overflow: "hidden",
+                          backgroundColor: colors.surface,
+                        }}
+                      >
+                        <Image
+                          source={{ uri: imageUri }}
+                          style={{ width: containerWidth, height: containerHeight }}
+                          resizeMode="cover"
+                        />
+                      </View>
+                      {/* Buttons — outside the overflow:hidden view so they always render */}
+                      <TouchableOpacity
+                        onPress={() => setImageUri(null)}
+                        style={{
+                          position: "absolute",
+                          top: spacing.md,
+                          right: spacing.md,
+                          backgroundColor: colors.overlay,
+                          padding: 8,
+                          borderRadius: radius.pill,
+                          zIndex: 10,
+                        }}
+                      >
+                        <X size={20} color="#fff" />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => {
+                          setOriginalImage(imageUri, imageWidth, imageHeight);
+                          router.push("/photo-editor");
+                        }}
+                        style={{
+                          position: "absolute",
+                          top: spacing.md,
+                          right: spacing.md + 48,
+                          backgroundColor: "rgba(28,28,28,0.85)",
+                          padding: 8,
+                          borderRadius: radius.pill,
+                          zIndex: 10,
+                        }}
+                      >
+                        <Pencil size={18} color="#fff" />
+                      </TouchableOpacity>
+                    </View>
+                  ) : (
+                    <View
+                      style={{
+                        width: containerWidth,
+                        height: 300,
+                        borderRadius: radius.lg,
+                        borderWidth: 2,
+                        borderColor: colors.border,
+                        borderStyle: "dashed",
+                        backgroundColor: colors.surface,
+                        alignItems: "center",
+                        justifyContent: "center",
+                        padding: spacing.xl,
+                        gap: spacing.md,
+                      }}
+                    >
+                      <ImagePlus size={48} color={colors.iconMuted} />
+                      <Text
+                        style={{
+                          fontFamily: typography.families.bodyMedium,
+                          fontSize: typography.scale.bodyLarge,
+                          color: colors.textSecondary,
+                        }}
+                      >
+                        Choose a file
+                      </Text>
+                      <View style={{ flexDirection: "row", gap: spacing.md, marginTop: spacing.md }}>
+                        <Button label="Gallery" variant="secondary" onPress={handlePickImage} />
+                        <Button label="Camera" variant="secondary" onPress={handleTakePhoto} />
+                      </View>
+                    </View>
+                  )}
                 </View>
-              ) : (
-                <View
-                  style={{
-                    flex: 1,
-                    borderRadius: radius.lg,
-                    borderWidth: 2,
-                    borderColor: colors.border,
-                    borderStyle: "dashed",
-                    backgroundColor: colors.surface,
-                    alignItems: "center",
-                    justifyContent: "center",
-                    padding: spacing.xl,
-                    gap: spacing.md,
-                  }}
-                >
-                  <ImagePlus size={48} color={colors.iconMuted} />
-                  <Text
-                    style={{
-                      fontFamily: typography.families.bodyMedium,
-                      fontSize: typography.scale.bodyLarge,
-                      color: colors.textSecondary,
-                    }}
-                  >
-                    Choose a file
-                  </Text>
-                  <View style={{ flexDirection: "row", gap: spacing.md, marginTop: spacing.md }}>
-                    <Button label="Gallery" variant="secondary" onPress={handlePickImage} />
-                    <Button label="Camera" variant="secondary" onPress={handleTakePhoto} />
-                  </View>
-                </View>
-              )}
-            </View>
+              );
+            })()}
 
             {/* Form */}
             <View style={{ flex: 1, gap: spacing.md }}>

@@ -39,18 +39,50 @@ export async function takePhoto(): Promise<ImagePicker.ImagePickerAsset | null> 
   return result.assets[0] ?? null;
 }
 
-/** Compress + resize image before upload */
+/** Compress + resize image before upload.
+ *  - If the image's longest edge is already ≤ MAX_DIMENSION it is only
+ *    re-encoded (quality/format), never upscaled.
+ *  - The correct axis (width vs height) is capped so portrait images
+ *    don't get width-capped and accidentally enlarged.
+ *  - GIFs are left completely untouched to preserve animation.
+ */
 export async function compressImage(
   uri: string,
   isGif = false,
+  actualWidth = 0,
+  actualHeight = 0,
 ): Promise<{ uri: string; width: number; height: number }> {
   if (isGif) {
-    // Skip manipulation for GIFs — preserve animation
     return { uri, width: 0, height: 0 };
   }
+
+  // If the caller didn't supply dimensions, read them with a no-op pass.
+  // This matters because without real dimensions we'd always fall into the
+  // landscape (width-cap) branch, turning a 1080×2400 portrait into 2048×4551.
+  let w = actualWidth;
+  let h = actualHeight;
+  if (w === 0 || h === 0) {
+    const probe = await ImageManipulator.manipulateAsync(uri, [], {});
+    w = probe.width;
+    h = probe.height;
+  }
+
+  const actions: ImageManipulator.Action[] = [];
+  const longest = Math.max(w, h);
+  if (longest > MAX_DIMENSION) {
+    // Cap only the longest edge so the image is never enlarged
+    const resize: { width?: number; height?: number } =
+      h > w
+        ? { height: MAX_DIMENSION } // portrait
+        : { width: MAX_DIMENSION };  // landscape / square
+    actions.push({ resize });
+  }
+  // If image already fits within MAX_DIMENSION, actions is empty —
+  // manipulateAsync will just re-encode at the requested quality.
+
   const result = await ImageManipulator.manipulateAsync(
     uri,
-    [{ resize: { width: MAX_DIMENSION } }],
+    actions,
     { compress: COMPRESS_QUALITY, format: ImageManipulator.SaveFormat.JPEG },
   );
   return { uri: result.uri, width: result.width, height: result.height };
