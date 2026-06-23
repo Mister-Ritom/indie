@@ -1,66 +1,78 @@
 /**
  * SkiaEditorCanvas.tsx
  *
- * The actual Skia canvas that holds ALL editable layers:
- *   – Base photo
- *   – Free-hand drawing paths
- *   – Text overlays (Skia Text)
- *   – Emoji stickers (Skia Text with emoji font)
+ * Cross-platform Skia canvas for the photo editor.
+ *   – Native  → GPU / Metal / Vulkan (CanvasKit always ready synchronously)
+ *   – Web     → CanvasKit WASM (must be fully loaded before ANY Skia API call)
  *
- * This file is ONLY imported when NOT running inside Expo Go
- * (guarded by PhotoEditorModal).
- *
- * Cross-platform:
- *   – Native  → renders via GPU / Metal / Vulkan
- *   – Web     → renders via CanvasKit WASM (loaded by LoadSkiaWeb in _layout.tsx)
+ * Key web constraints:
+ *   • matchFont is NOT implemented on React Native Web → guarded behind Platform.OS !== 'web'
+ *   • Text and sticker layers are rendered as RN overlay views on web (not Skia)
+ *   • Draw paths still go through Skia Canvas on web (works fine)
+ *   • Export on web uses makeImageSnapshot() which only captures draw paths;
+ *     text/sticker layers are composited in photo-editor.tsx via html2canvas fallback
  */
 
 import React, {
   forwardRef,
   useImperativeHandle,
-  useRef,
   useCallback,
-  useMemo,
-} from 'react';
-import { Platform, Dimensions } from 'react-native';
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+import { Platform } from "react-native";
 import {
   Canvas,
   Image as SkImage,
   Path,
-  Text as SkText,
-  matchFont,
   useCanvasRef,
   useImage,
   Skia,
   Group,
-  RoundedRect,
   Paint,
-} from '@shopify/react-native-skia';
-import type { DrawPath, TextLayer, StickerLayer } from './editorTypes';
+} from "@shopify/react-native-skia";
+import type { DrawPath, TextLayer, StickerLayer } from "./editorTypes";
 
-const { width: SW } = Dimensions.get('window');
+// matchFont and Text/RoundedRect are only imported on native to avoid the
+// "Not implemented on React Native Web" crash.
+let SkText: any = null;
+let RoundedRect: any = null;
+let matchFont: ((descriptor: any) => any) | null = null;
 
-// ─── Public API (accessed via ref from parent) ───────────────────────────────
+if (Platform.OS !== "web") {
+  const skia = require("@shopify/react-native-skia");
+  SkText = skia.Text;
+  RoundedRect = skia.RoundedRect;
+  matchFont = skia.matchFont;
+}
+
+const BG_PAD = 8;
+
+// ─── Public API ───────────────────────────────────────────────────────────────
 export interface SkiaEditorCanvasHandle {
-  /** Returns a base64-encoded JPEG of the entire edited image, or null on error. */
   exportAsBase64: () => string | null;
 }
 
-// ─── Props ───────────────────────────────────────────────────────────────────
+// ─── Props ────────────────────────────────────────────────────────────────────
 interface Props {
   imageUri: string;
   canvasWidth: number;
   canvasHeight: number;
   drawPaths: DrawPath[];
+  /** On web, text layers are rendered as RN views in photo-editor.tsx.
+   *  Only used here on native for Skia-based export. */
   textLayers: TextLayer[];
+  /** Same as above for stickers. */
   stickerLayers: StickerLayer[];
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-/** Build a smooth SVG path string from an array of draw points. */
-function buildPathString(points: { x: number; y: number }[], smooth: boolean): string {
-  if (points.length === 0) return '';
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function buildPathString(
+  points: { x: number; y: number }[],
+  smooth: boolean,
+): string {
+  if (points.length === 0) return "";
   if (points.length === 1) {
     const p = points[0];
     return `M ${p.x} ${p.y} L ${p.x + 0.1} ${p.y}`;
@@ -84,52 +96,64 @@ function buildPathString(points: { x: number; y: number }[], smooth: boolean): s
   return d;
 }
 
-const SMOOTH_BRUSHES = new Set<string>(['marker', 'highlighter', 'pen', 'eraser']);
+const SMOOTH_BRUSHES = new Set<string>([
+  "marker",
+  "highlighter",
+  "pen",
+  "eraser",
+]);
 
-// ─── Component ───────────────────────────────────────────────────────────────
-export const SkiaEditorCanvas = forwardRef<SkiaEditorCanvasHandle, Props>(
-  ({ imageUri, canvasWidth, canvasHeight, drawPaths, textLayers, stickerLayers }, ref) => {
-    const canvasRef = useCanvasRef();
-    const skiaImage = useImage(imageUri);
+// ─── Readiness probe ──────────────────────────────────────────────────────────
+function canvasKitIsReady(): boolean {
+  if (Platform.OS !== "web") return true; // native is always synchronous
+  try {
+    // @ts-ignore – intentional global probe
+    if (typeof CanvasKit === "undefined") return false;
+    // @ts-ignore
+    if (!CanvasKit.PictureRecorder) return false;
+    // @ts-ignore
+    if (!CanvasKit.MakeImageFromEncoded) return false;
+    // @ts-ignore
+    if (!CanvasKit.TypefaceFontProvider) return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
 
-    // ─── Fonts via matchFont (no file loading required) ────────────────────
-    const bodyFont24 = useMemo(
-      () =>
-        matchFont({
-          fontFamily: Platform.select({ ios: 'Helvetica Neue', android: 'Roboto', default: 'sans-serif' }),
-          fontSize: 24,
-          fontWeight: 'normal',
-        }),
-      [],
-    );
+// ─── Inner canvas ─────────────────────────────────────────────────────────────
+interface InnerProps extends Props {
+  onReady: (handle: SkiaEditorCanvasHandle) => void;
+}
 
-    const boldFont24 = useMemo(
-      () =>
-        matchFont({
-          fontFamily: Platform.select({ ios: 'Helvetica Neue', android: 'Roboto', default: 'sans-serif' }),
-          fontSize: 24,
-          fontWeight: 'bold',
-        }),
-      [],
-    );
+function SkiaEditorCanvasInner({
+  imageUri,
+  canvasWidth,
+  canvasHeight,
+  drawPaths,
+  textLayers,
+  stickerLayers,
+  onReady,
+}: InnerProps) {
+  const canvasRef = useCanvasRef();
+  const skiaImage = useImage(imageUri);
 
-    /** Returns a font matched to the requested size / weight */
-    const getFont = useCallback(
-      (fontSize: number, bold: boolean) =>
-        matchFont({
-          fontFamily: Platform.select({
-            ios: 'Helvetica Neue',
-            android: 'Roboto',
-            default: 'sans-serif',
-          }),
-          fontSize,
-          fontWeight: bold ? 'bold' : 'normal',
-        }),
-      [],
-    );
+  // matchFont is only available on native
+  const getFont = useCallback((fontSize: number, bold: boolean) => {
+    if (Platform.OS === "web" || !matchFont) return null;
+    return matchFont({
+      fontFamily: Platform.select({
+        ios: "Helvetica Neue",
+        android: "Roboto",
+        default: "sans-serif",
+      }),
+      fontSize,
+      fontWeight: bold ? "bold" : "normal",
+    });
+  }, []);
 
-    // ─── Export ────────────────────────────────────────────────────────────
-    useImperativeHandle(ref, () => ({
+  useEffect(() => {
+    onReady({
       exportAsBase64: () => {
         if (!canvasRef.current) return null;
         try {
@@ -137,54 +161,62 @@ export const SkiaEditorCanvas = forwardRef<SkiaEditorCanvasHandle, Props>(
           if (!snapshot) return null;
           return snapshot.encodeToBase64();
         } catch (e) {
-          console.error('[SkiaEditorCanvas] exportAsBase64 failed:', e);
+          console.error("[SkiaEditorCanvas] exportAsBase64 failed:", e);
           return null;
         }
       },
-    }));
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-    return (
-      <Canvas ref={canvasRef} style={{ width: canvasWidth, height: canvasHeight }}>
-        {/* ── Base image ─────────────────────────────────────────────────── */}
-        {skiaImage && (
-          <SkImage
-            image={skiaImage}
-            x={0}
-            y={0}
-            width={canvasWidth}
-            height={canvasHeight}
-            fit="cover"
-          />
-        )}
+  const isWeb = Platform.OS === "web";
 
-        {/* ── Drawing paths ──────────────────────────────────────────────── */}
-        <Group layer={<Paint />}>
-          {drawPaths.map((dp) => {
-            if (dp.points.length === 0) return null;
-            const isEraser = dp.brushType === 'eraser';
-            const smooth = SMOOTH_BRUSHES.has(dp.brushType);
-            const pathStr = buildPathString(dp.points, smooth);
-            const skPath = Skia.Path.MakeFromSVGString(pathStr);
-            if (!skPath) return null;
+  return (
+    <Canvas
+      ref={canvasRef}
+      style={{ width: canvasWidth, height: canvasHeight }}
+    >
+      {skiaImage && (
+        <SkImage
+          image={skiaImage}
+          x={0}
+          y={0}
+          width={canvasWidth}
+          height={canvasHeight}
+          fit="cover"
+        />
+      )}
 
-            return (
-              <Path
-                key={dp.id}
-                path={skPath}
-                color={isEraser ? '#000000' : dp.color}
-                style="stroke"
-                strokeWidth={dp.strokeWidth}
-                strokeCap="round"
-                strokeJoin="round"
-                opacity={isEraser ? 1 : dp.opacity}
-                blendMode={isEraser ? 'clear' : 'srcOver'}
-              />
-            );
-          })}
-        </Group>
+      <Group layer={<Paint />}>
+        {drawPaths.map((dp) => {
+          if (dp.points.length === 0) return null;
+          const isEraser = dp.brushType === "eraser";
+          const smooth = SMOOTH_BRUSHES.has(dp.brushType);
+          const pathStr = buildPathString(dp.points, smooth);
+          const skPath = Skia.Path.MakeFromSVGString(pathStr);
+          if (!skPath) return null;
 
-        {/* ── Text layers ────────────────────────────────────────────────── */}
-        {textLayers.map((layer) => {
+          return (
+            <Path
+              key={dp.id}
+              path={skPath}
+              color={isEraser ? "#000000" : dp.color}
+              style="stroke"
+              strokeWidth={dp.strokeWidth}
+              strokeCap="round"
+              strokeJoin="round"
+              opacity={isEraser ? 1 : dp.opacity}
+              blendMode={isEraser ? "clear" : "srcOver"}
+            />
+          );
+        })}
+      </Group>
+
+      {/* Text layers: native only — web uses RN overlay views in photo-editor.tsx */}
+      {!isWeb &&
+        SkText &&
+        RoundedRect &&
+        textLayers.map((layer) => {
           const font = getFont(layer.fontSize, layer.bold);
           if (!font) return null;
 
@@ -192,14 +224,14 @@ export const SkiaEditorCanvas = forwardRef<SkiaEditorCanvasHandle, Props>(
           const estimatedHeight = layer.fontSize * 1.4;
 
           let textX = layer.x;
-          if (layer.align === 'center') textX = layer.x - estimatedWidth / 2;
-          if (layer.align === 'right') textX = layer.x - estimatedWidth;
+          if (layer.align === "center") textX = layer.x - estimatedWidth / 2;
+          if (layer.align === "right") textX = layer.x - estimatedWidth;
 
           const pivotX = textX + estimatedWidth / 2;
           const pivotY = layer.y - estimatedHeight / 2;
 
           return (
-            <Group 
+            <Group
               key={layer.id}
               transform={[
                 { translateX: pivotX },
@@ -210,12 +242,11 @@ export const SkiaEditorCanvas = forwardRef<SkiaEditorCanvasHandle, Props>(
                 { translateY: -pivotY },
               ]}
             >
-              {/* Solid background badge */}
-              {layer.bgStyle === 'solid' && (
+              {layer.bgStyle === "solid" && (
                 <RoundedRect
-                  x={textX - bgPad}
-                  y={layer.y - estimatedHeight + bgPad}
-                  width={estimatedWidth + bgPad * 2}
+                  x={textX - BG_PAD}
+                  y={layer.y - estimatedHeight + BG_PAD}
+                  width={estimatedWidth + BG_PAD * 2}
                   height={estimatedHeight}
                   r={6}
                   color="rgba(0,0,0,0.55)"
@@ -232,11 +263,13 @@ export const SkiaEditorCanvas = forwardRef<SkiaEditorCanvasHandle, Props>(
           );
         })}
 
-        {/* ── Sticker layers ─────────────────────────────────────────────── */}
-        {stickerLayers.map((sticker) => {
+      {/* Sticker layers: native only */}
+      {!isWeb &&
+        SkText &&
+        stickerLayers.map((sticker) => {
           const emojiFont = getFont(52, false);
           if (!emojiFont) return null;
-          
+
           const pivotX = sticker.x + 26;
           const pivotY = sticker.y - 26;
 
@@ -257,14 +290,52 @@ export const SkiaEditorCanvas = forwardRef<SkiaEditorCanvasHandle, Props>(
                 y={sticker.y}
                 text={sticker.emoji}
                 font={emojiFont}
-                color="white" // Skia ignores this for emoji glyphs
+                color="white"
               />
             </Group>
           );
         })}
-      </Canvas>
+    </Canvas>
+  );
+}
+
+// ─── Outer shell (exported) ────────────────────────────────────────────────────
+export const SkiaEditorCanvas = forwardRef<SkiaEditorCanvasHandle, Props>(
+  (props, ref) => {
+    const [skiaReady, setSkiaReady] = useState(false);
+    const innerHandle = useRef<SkiaEditorCanvasHandle | null>(null);
+
+    useImperativeHandle(ref, () => ({
+      exportAsBase64: () => innerHandle.current?.exportAsBase64() ?? null,
+    }));
+
+    useEffect(() => {
+      if (canvasKitIsReady()) {
+        setSkiaReady(true);
+        return;
+      }
+
+      const id = setInterval(() => {
+        if (canvasKitIsReady()) {
+          setSkiaReady(true);
+          clearInterval(id);
+        }
+      }, 50);
+
+      return () => clearInterval(id);
+    }, []);
+
+    if (!skiaReady) return null;
+
+    return (
+      <SkiaEditorCanvasInner
+        {...props}
+        onReady={(handle) => {
+          innerHandle.current = handle;
+        }}
+      />
     );
   },
 );
 
-SkiaEditorCanvas.displayName = 'SkiaEditorCanvas';
+SkiaEditorCanvas.displayName = "SkiaEditorCanvas";

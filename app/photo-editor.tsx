@@ -1,7 +1,18 @@
 /**
  * photo-editor.tsx
  *
- * Full-screen Pinterest-style photo editor screen.
+ * Cross-platform photo editor.
+ *
+ * Layout:
+ *   Mobile  → original Pinterest-style stacked layout (toolbar at bottom)
+ *   Web/Desktop → sidebar on the left, canvas centred, top action bar
+ *
+ * Web crash fix:
+ *   matchFont / SkText / RoundedRect are NOT implemented on React Native Web.
+ *   Those APIs are now guarded inside SkiaEditorCanvas.tsx (Platform.OS !== 'web').
+ *   On web, text + sticker layers are rendered as absolutely-positioned RN views
+ *   exactly as they were on native, and export uses html-to-image / canvas compositing
+ *   instead of Skia's makeImageSnapshot.
  */
 
 import React, {
@@ -23,6 +34,8 @@ import {
   StatusBar,
   KeyboardAvoidingView,
   Keyboard,
+  useWindowDimensions,
+  ActivityIndicator,
 } from "react-native";
 import {
   X,
@@ -43,12 +56,15 @@ import {
   Pen,
   Eraser,
   Trash2,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react-native";
 
 import { router } from "expo-router";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
+  withTiming,
   runOnJS,
 } from "react-native-reanimated";
 import {
@@ -79,24 +95,31 @@ import type {
   EditorTool,
   BrushType,
 } from "@/components/ui/editor/editorTypes";
+import type { SkiaEditorCanvasHandle } from "@/components/ui/editor/SkiaEditorCanvas";
 
 const isExpoGo =
   Platform.OS !== "web" &&
   Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
 
-const { width: SW, height: SH } = Dimensions.get("window");
+// ─── Breakpoint ───────────────────────────────────────────────────────────────
+const WEB_DESKTOP_BREAKPOINT = 768;
 
-let SkiaEditorCanvasComponent:
-  | typeof import("@/components/ui/editor/SkiaEditorCanvas").SkiaEditorCanvas
-  | null = null;
-if (!isExpoGo) {
-  SkiaEditorCanvasComponent =
-    require("@/components/ui/editor/SkiaEditorCanvas").SkiaEditorCanvas;
-}
+// ─── Lazy-load SkiaEditorCanvas ───────────────────────────────────────────────
+type SkiaCanvasType =
+  typeof import("@/components/ui/editor/SkiaEditorCanvas").SkiaEditorCanvas;
 
 let _idCounter = 0;
 const uid = () => `${Date.now()}_${_idCounter++}`;
 
+// ─── Design tokens ────────────────────────────────────────────────────────────
+const SIDEBAR_BG = "rgba(18,18,22,0.97)";
+const SIDEBAR_WIDTH = 72;
+const SIDEBAR_EXPANDED_WIDTH = 220;
+const ACCENT = "#6C63FF"; // violet accent for active states on web
+const SURFACE = "rgba(255,255,255,0.07)";
+const BORDER = "rgba(255,255,255,0.09)";
+
+// ─── Color Sheet ──────────────────────────────────────────────────────────────
 function ColorSheet({ visible, selected, onSelect, onClose }: any) {
   if (!visible) return null;
   return (
@@ -155,7 +178,7 @@ const cs = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: "rgba(28,28,28,0.98)",
+    backgroundColor: "rgba(22,22,28,0.99)",
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingTop: 12,
@@ -179,6 +202,67 @@ const cs = StyleSheet.create({
   },
 });
 
+// ─── Web Color Panel (inline, not a sheet) ────────────────────────────────────
+function WebColorPanel({ visible, selected, onSelect, onClose }: any) {
+  if (!visible) return null;
+  return (
+    <View style={wcp.panel}>
+      <View style={wcp.header}>
+        <Text style={wcp.title}>Color</Text>
+        <TouchableOpacity onPress={onClose}>
+          <X size={14} color="rgba(255,255,255,0.5)" />
+        </TouchableOpacity>
+      </View>
+      <View style={wcp.grid}>
+        {COLOR_PALETTE.map((c) => (
+          <TouchableOpacity
+            key={c}
+            onPress={() => onSelect(c)}
+            style={[
+              wcp.swatch,
+              { backgroundColor: c },
+              selected === c && wcp.swatchSelected,
+            ]}
+          />
+        ))}
+      </View>
+    </View>
+  );
+}
+
+const wcp = StyleSheet.create({
+  panel: {
+    backgroundColor: "rgba(28,28,36,0.98)",
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: BORDER,
+    marginTop: 8,
+  },
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  title: {
+    color: "rgba(255,255,255,0.6)",
+    fontSize: 11,
+    fontWeight: "600",
+    letterSpacing: 1,
+  },
+  grid: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
+  swatch: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+  },
+  swatchSelected: { borderWidth: 2.5, borderColor: "#fff" },
+});
+
+// ─── Sticker Sheet ────────────────────────────────────────────────────────────
 function StickerSheet({ visible, onSelect, onClose }: any) {
   if (!visible) return null;
   return (
@@ -193,9 +277,9 @@ function StickerSheet({ visible, onSelect, onClose }: any) {
           <ScrollView>
             {STICKER_ROWS.map((row, ri) => (
               <View key={ri} style={ss.row}>
-                {row.map((emoji) => (
+                {row.map((emoji, ei) => (
                   <TouchableOpacity
-                    key={emoji}
+                    key={`${ri}-${ei}`}
                     onPress={() => {
                       onSelect(emoji);
                       onClose();
@@ -220,13 +304,13 @@ const ss = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: "rgba(28,28,28,0.98)",
+    backgroundColor: "rgba(22,22,28,0.99)",
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingTop: 16,
     paddingBottom: Platform.OS === "ios" ? 36 : 24,
     paddingHorizontal: 16,
-    maxHeight: SH * 0.55,
+    maxHeight: Dimensions.get("window").height * 0.55,
   },
   heading: {
     color: "#fff",
@@ -244,6 +328,63 @@ const ss = StyleSheet.create({
   emoji: { fontSize: 34 },
 });
 
+// ─── Web Sticker Panel ────────────────────────────────────────────────────────
+function WebStickerPanel({ visible, onSelect, onClose }: any) {
+  if (!visible) return null;
+  const allEmojis = STICKER_ROWS.flat();
+  return (
+    <View style={wsp.panel}>
+      <View style={wsp.header}>
+        <Text style={wsp.title}>STICKERS</Text>
+        <TouchableOpacity onPress={onClose}>
+          <X size={14} color="rgba(255,255,255,0.5)" />
+        </TouchableOpacity>
+      </View>
+      <View style={wsp.grid}>
+        {allEmojis.map((emoji, idx) => (
+          <TouchableOpacity
+            key={`${emoji}-${idx}`}
+            onPress={() => {
+              onSelect(emoji);
+              onClose();
+            }}
+            style={wsp.emojiBtn}
+          >
+            <Text style={wsp.emoji}>{emoji}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+const wsp = StyleSheet.create({
+  panel: {
+    backgroundColor: "rgba(28,28,36,0.98)",
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: BORDER,
+    marginTop: 8,
+  },
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  title: {
+    color: "rgba(255,255,255,0.6)",
+    fontSize: 11,
+    fontWeight: "600",
+    letterSpacing: 1,
+  },
+  grid: { flexDirection: "row", flexWrap: "wrap" },
+  emojiBtn: { padding: 4 },
+  emoji: { fontSize: 26 },
+});
+
+// ─── Brush Icon map ───────────────────────────────────────────────────────────
 const BRUSH_ICON_COMPONENTS: Record<string, React.FC<any>> = {
   marker: PenLine,
   highlighter: Highlighter,
@@ -252,6 +393,7 @@ const BRUSH_ICON_COMPONENTS: Record<string, React.FC<any>> = {
   eraser: Eraser,
 };
 
+// ─── Mobile Draw Toolbar ──────────────────────────────────────────────────────
 function DrawToolbar({
   activeBrush,
   brushColor,
@@ -330,6 +472,7 @@ const dt = StyleSheet.create({
   colorCircle: { flex: 1 },
 });
 
+// ─── Text Controls Bar ────────────────────────────────────────────────────────
 function TextControlsBar({
   align,
   bgStyle,
@@ -343,7 +486,6 @@ function TextControlsBar({
   const AlignIcon =
     align === "left" ? AlignLeft : align === "right" ? AlignRight : AlignCenter;
   const bgIsActive = bgStyle === "solid";
-  const boldIsActive = bold;
   return (
     <View style={tcb.bar}>
       <TouchableOpacity
@@ -359,9 +501,9 @@ function TextControlsBar({
       </TouchableOpacity>
       <TouchableOpacity
         onPress={onBoldToggle}
-        style={[tcb.btn, boldIsActive && tcb.btnActive]}
+        style={[tcb.btn, bold && tcb.btnActive]}
       >
-        <Bold size={20} color={boldIsActive ? "#111" : "#fff"} />
+        <Bold size={20} color={bold ? "#111" : "#fff"} />
       </TouchableOpacity>
       <TouchableOpacity onPress={onColorPress} style={tcb.colorBtn}>
         <View style={[tcb.colorDot, { backgroundColor: color }]} />
@@ -406,6 +548,7 @@ const tcb = StyleSheet.create({
   colorDot: { flex: 1 },
 });
 
+// ─── Draggable Text ───────────────────────────────────────────────────────────
 function DraggableText({
   layer,
   isActive,
@@ -444,7 +587,6 @@ function DraggableText({
         .onEnd(() => {
           runOnJS(onUpdatePosition)(layer.id, transX.value, transY.value);
         }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [globalPinchRef, globalRotateRef],
   );
 
@@ -456,7 +598,6 @@ function DraggableText({
         .onEnd(() => {
           runOnJS(onSelect)(layer.id, true);
         }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [globalPinchRef, globalRotateRef],
   );
 
@@ -465,16 +606,13 @@ function DraggableText({
   const animatedStyle = useAnimatedStyle(() => {
     const estimatedWidth = layer.text.length * layer.fontSize * 0.6;
     const estimatedHeight = layer.fontSize * 1.4;
-
     let textX = transX.value;
     if (layer.align === "center") textX = transX.value - estimatedWidth / 2;
     if (layer.align === "right") textX = transX.value - estimatedWidth;
-
     const currentScale = isActive ? globalScale.value : layer.scale || 1;
     const currentRotation = isActive
       ? globalRotation.value
       : layer.rotation || 0;
-
     return {
       position: "absolute",
       left: textX - 16,
@@ -518,20 +656,7 @@ function DraggableText({
         {isActive && (
           <TouchableOpacity
             onPress={() => onDelete(layer.id)}
-            style={{
-              position: "absolute",
-              top: -12,
-              left: -12,
-              backgroundColor: "rgba(20,20,20,0.8)",
-              borderRadius: 16,
-              width: 32,
-              height: 32,
-              alignItems: "center",
-              justifyContent: "center",
-              zIndex: 10,
-              borderWidth: 1,
-              borderColor: "rgba(255,255,255,0.2)",
-            }}
+            style={styles.layerDeleteBtn}
           >
             <Trash2 size={16} color={colors.error} strokeWidth={2} />
           </TouchableOpacity>
@@ -541,6 +666,7 @@ function DraggableText({
   );
 }
 
+// ─── Draggable Sticker ────────────────────────────────────────────────────────
 function DraggableSticker({
   layer,
   isActive,
@@ -579,7 +705,6 @@ function DraggableSticker({
         .onEnd(() => {
           runOnJS(onUpdateLayer)(layer.id, transX.value, transY.value);
         }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [globalPinchRef, globalRotateRef],
   );
 
@@ -591,7 +716,6 @@ function DraggableSticker({
         .onEnd(() => {
           runOnJS(onSelect)(layer.id, true);
         }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [globalPinchRef, globalRotateRef],
   );
 
@@ -602,7 +726,6 @@ function DraggableSticker({
     const currentRotation = isActive
       ? globalRotation.value
       : layer.rotation || 0;
-
     return {
       position: "absolute",
       left: transX.value - 16,
@@ -632,20 +755,7 @@ function DraggableSticker({
         {isActive && (
           <TouchableOpacity
             onPress={() => onDelete(layer.id)}
-            style={{
-              position: "absolute",
-              top: -12,
-              left: -12,
-              backgroundColor: "rgba(20,20,20,0.8)",
-              borderRadius: 16,
-              width: 32,
-              height: 32,
-              alignItems: "center",
-              justifyContent: "center",
-              zIndex: 10,
-              borderWidth: 1,
-              borderColor: "rgba(255,255,255,0.2)",
-            }}
+            style={styles.layerDeleteBtn}
           >
             <Trash2 size={16} color={colors.error} strokeWidth={2} />
           </TouchableOpacity>
@@ -655,6 +765,57 @@ function DraggableSticker({
   );
 }
 
+// ─── Web Sidebar Tool Button ──────────────────────────────────────────────────
+function SidebarToolBtn({ icon: Icon, label, isActive, onPress, color }: any) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      style={[wb.toolBtn, isActive && wb.toolBtnActive]}
+    >
+      <Icon
+        size={20}
+        color={isActive ? "#fff" : "rgba(255,255,255,0.55)"}
+        strokeWidth={isActive ? 2.2 : 1.7}
+      />
+      <Text style={[wb.toolLabel, isActive && wb.toolLabelActive]}>
+        {label}
+      </Text>
+      {isActive && (
+        <View style={[wb.activePip, { backgroundColor: color || ACCENT }]} />
+      )}
+    </TouchableOpacity>
+  );
+}
+
+const wb = StyleSheet.create({
+  toolBtn: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+    gap: 5,
+    position: "relative",
+  },
+  toolBtnActive: { backgroundColor: "rgba(108,99,255,0.18)" },
+  toolLabel: {
+    color: "rgba(255,255,255,0.4)",
+    fontSize: 10,
+    fontWeight: "500",
+  },
+  toolLabelActive: { color: "rgba(255,255,255,0.85)" },
+  activePip: {
+    position: "absolute",
+    left: 4,
+    top: "50%",
+    width: 3,
+    height: 20,
+    borderRadius: 2,
+    marginTop: -10,
+  },
+});
+
+// ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function PhotoEditorScreen() {
   const {
     originalUri: imageUri,
@@ -663,13 +824,27 @@ export default function PhotoEditorScreen() {
     setEditedImage,
   } = useEditorStore();
 
+  const { width: windowWidth } = useWindowDimensions();
+  const isDesktop =
+    Platform.OS === "web" && windowWidth >= WEB_DESKTOP_BREAKPOINT;
+
   const [activeTool, setActiveTool] = useState<EditorTool>("none");
+
+  // Animated sidebar width
+  const sidebarAnimWidth = useSharedValue(SIDEBAR_WIDTH);
+  const animatedSidebarStyle = useAnimatedStyle(() => ({
+    width: sidebarAnimWidth.value,
+  }));
   const [showCrop, setShowCrop] = useState(false);
   const [showColorSheet, setShowColorSheet] = useState(false);
   const [showStickerSheet, setShowStickerSheet] = useState(false);
+  // Web-only: which sidebar sub-panel is open
+  const [webColorTarget, setWebColorTarget] = useState<
+    "draw" | "text" | "layer" | null
+  >(null);
 
   const [drawPaths, setDrawPaths] = useState<DrawPath[]>([]);
-  const [initialDrawPaths, setInitialDrawPaths] = useState<DrawPath[]>([]); // For cancel
+  const [initialDrawPaths, setInitialDrawPaths] = useState<DrawPath[]>([]);
   const [activeBrush, setActiveBrush] = useState<BrushType>("marker");
   const [brushColor, setBrushColor] = useState(DEFAULT_DRAW_COLOR);
   const currentPathRef = useRef<DrawPath | null>(null);
@@ -685,11 +860,56 @@ export default function PhotoEditorScreen() {
 
   const [stickerLayers, setStickerLayers] = useState<StickerLayer[]>([]);
   const [activeLayerId, setActiveLayerId] = useState<string | null>(null);
-  const [editingLayerId, setEditingLayerId] = useState<string | null>(null); // existing layer being re-edited
+  const [editingLayerId, setEditingLayerId] = useState<string | null>(null);
   const [currentUri, setCurrentUri] = useState(imageUri || "");
   const [isExporting, setIsExporting] = useState(false);
 
+  // Expand/collapse sidebar with animation
+  useEffect(() => {
+    const expanded = activeTool !== "none" || showStickerSheet;
+    sidebarAnimWidth.value = withTiming(
+      expanded ? SIDEBAR_EXPANDED_WIDTH : SIDEBAR_WIDTH,
+      { duration: 220 },
+    );
+  }, [activeTool, showStickerSheet]);
+
+  const [SkiaEditorCanvasComponent, setSkiaEditorCanvasComponent] =
+    useState<SkiaCanvasType | null>(null);
+
+  useEffect(() => {
+    if (isExpoGo) return;
+    const mod = require("@/components/ui/editor/SkiaEditorCanvas");
+    setSkiaEditorCanvasComponent(() => mod.SkiaEditorCanvas as SkiaCanvasType);
+  }, []);
+
+  // ── Canvas sizing ──────────────────────────────────────────────────────────
   const { canvasWidth, canvasHeight } = useMemo(() => {
+    const SW = windowWidth;
+    const SH = Dimensions.get("window").height;
+
+    if (isDesktop) {
+      // On web desktop: subtract sidebar width, leave room for top bar
+      const sidebarW =
+        activeTool !== "none" || showStickerSheet
+          ? SIDEBAR_EXPANDED_WIDTH
+          : SIDEBAR_WIDTH;
+      const availW = SW - sidebarW - 48;
+      const availH = SH - 80;
+      if (!imageWidth || !imageHeight)
+        return {
+          canvasWidth: Math.min(availW, 800),
+          canvasHeight: Math.min(availH, 600),
+        };
+      const aspect = imageWidth / imageHeight;
+      let w = availW;
+      let h = w / aspect;
+      if (h > availH) {
+        h = availH;
+        w = h * aspect;
+      }
+      return { canvasWidth: Math.round(w), canvasHeight: Math.round(h) };
+    }
+
     const maxWidth = SW;
     const maxHeight = SH * 0.75;
     if (!imageWidth || !imageHeight)
@@ -702,7 +922,14 @@ export default function PhotoEditorScreen() {
       w = h * aspect;
     }
     return { canvasWidth: w, canvasHeight: h };
-  }, [imageWidth, imageHeight]);
+  }, [
+    imageWidth,
+    imageHeight,
+    windowWidth,
+    isDesktop,
+    activeTool,
+    showStickerSheet,
+  ]);
 
   const globalScale = useSharedValue(1);
   const savedGlobalScale = useSharedValue(1);
@@ -727,8 +954,6 @@ export default function PhotoEditorScreen() {
     );
   }, [activeLayerId]);
 
-  // Store as stable refs so the gesture object identity never changes across renders.
-  // This is required for simultaneousWithExternalGesture to work in child GestureDetectors.
   const globalPinchRef = useRef(
     Gesture.Pinch()
       .onStart(() => {
@@ -755,24 +980,17 @@ export default function PhotoEditorScreen() {
       }),
   ).current;
 
-  // Global pinch + rotate live on the outermost wrapper so one finger
-  // can be anywhere on screen while the other is over the active layer.
   const globalTransformGesture = useMemo(
     () => Gesture.Simultaneous(globalPinchRef, globalRotateRef),
     [globalPinchRef, globalRotateRef],
   );
 
   useEffect(() => {
-    if (imageUri && !currentUri) {
-      setCurrentUri(imageUri);
-    }
+    if (imageUri && !currentUri) setCurrentUri(imageUri);
   }, [imageUri, currentUri]);
 
   const captureViewRef = useRef<View>(null);
-  const canvasRef =
-    useRef<
-      import("@/components/ui/editor/SkiaEditorCanvas").SkiaEditorCanvasHandle
-    >(null);
+  const canvasRef = useRef<SkiaEditorCanvasHandle>(null);
 
   const brushConfig = useMemo(
     () => BRUSH_CONFIGS.find((b) => b.type === activeBrush)!,
@@ -824,7 +1042,6 @@ export default function PhotoEditorScreen() {
     [],
   );
 
-  // canvasGestures must be declared AFTER drawGesture (used as a dep)
   const canvasGestures = useMemo(() => {
     if (activeTool === "draw") return drawGesture;
     return canvasBackgroundTap;
@@ -837,7 +1054,6 @@ export default function PhotoEditorScreen() {
       return;
     }
     if (editingLayerId) {
-      // Update the existing layer in-place, keep position/scale/rotation
       setTextLayers((prev) =>
         prev.map((l) =>
           l.id === editingLayerId
@@ -885,9 +1101,8 @@ export default function PhotoEditorScreen() {
   ]);
 
   const handleToolCancel = useCallback(() => {
-    if (activeTool === "draw") {
-      setDrawPaths(initialDrawPaths);
-    } else if (activeTool === "text") {
+    if (activeTool === "draw") setDrawPaths(initialDrawPaths);
+    else if (activeTool === "text") {
       setEditingText("");
       setEditingLayerId(null);
     }
@@ -895,11 +1110,8 @@ export default function PhotoEditorScreen() {
   }, [activeTool, initialDrawPaths]);
 
   const handleToolDone = useCallback(() => {
-    if (activeTool === "text") {
-      addTextLayer();
-    } else {
-      setActiveTool("none");
-    }
+    if (activeTool === "text") addTextLayer();
+    else setActiveTool("none");
   }, [activeTool, addTextLayer]);
 
   const updateTextPosition = useCallback((id: string, x: number, y: number) => {
@@ -937,14 +1149,10 @@ export default function PhotoEditorScreen() {
   }, []);
 
   const activeTextLayer = textLayers.find((l) => l.id === activeLayerId);
-  // Selecting a layer:
-  // - If the layer isn't active yet → make it active
-  // - If the layer isn't active yet → make it active
-  // - If it IS already active and is a text layer, AND the action was a Tap → enter text-edit mode
+
   const handleLayerSelect = useCallback(
     (id: string, isTap = false) => {
       if (activeLayerId === id && isTap) {
-        // Already active + tapped: check if it's a text layer → re-edit
         const layer = textLayers.find((l) => l.id === id);
         if (layer) {
           setEditingText(layer.text);
@@ -976,18 +1184,139 @@ export default function PhotoEditorScreen() {
   const handleDone = useCallback(async () => {
     setActiveLayerId(null);
     setActiveTool("none");
+    setIsExporting(true);
+
     if (Platform.OS === "web") {
-      setIsExporting(true);
-      setTimeout(() => {
-        const base64 = canvasRef.current?.exportAsBase64();
-        if (base64) {
-          setEditedImage(`data:image/jpeg;base64,${base64}`);
-        } else {
+      // Web export strategy:
+      // 1. Get the Skia snapshot (base image + draw paths) as base64
+      // 2. Create an HTML5 canvas sized to the canvas dimensions
+      // 3. Draw the Skia snapshot onto it
+      // 4. Draw each text/sticker layer on top using canvas 2D API
+      // 5. Export as data URL
+      setTimeout(async () => {
+        try {
+          const skiaBase64 = canvasRef.current?.exportAsBase64() ?? null;
+
+          // The offscreen canvas is sized to the Skia snapshot's actual pixel
+          // dimensions (which are at device pixel ratio). We then scale all
+          // layer coordinates (which are in logical CSS px) by the same ratio
+          // so text/stickers land in the right spot on the full-res export.
+          const dpr = window.devicePixelRatio || 1;
+          const exportW = Math.round(canvasWidth * dpr);
+          const exportH = Math.round(canvasHeight * dpr);
+
+          const offscreen = document.createElement("canvas");
+          offscreen.width = exportW;
+          offscreen.height = exportH;
+          const ctx = offscreen.getContext("2d")!;
+
+          // Scale all subsequent drawing by DPR so logical-px coords map correctly
+          ctx.scale(dpr, dpr);
+
+          // Draw the Skia layer (image + draw paths) scaled to logical canvas size
+          if (skiaBase64) {
+            await new Promise<void>((resolve, reject) => {
+              const img = new window.Image();
+              img.onload = () => {
+                ctx.drawImage(img, 0, 0, canvasWidth, canvasHeight);
+                resolve();
+              };
+              img.onerror = reject;
+              img.src = `data:image/jpeg;base64,${skiaBase64}`;
+            });
+          } else {
+            // Fallback: draw the source image directly
+            await new Promise<void>((resolve, reject) => {
+              const img = new window.Image();
+              img.crossOrigin = "anonymous";
+              img.onload = () => {
+                ctx.drawImage(img, 0, 0, canvasWidth, canvasHeight);
+                resolve();
+              };
+              img.onerror = reject;
+              img.src = currentUri;
+            });
+          }
+
+          // Draw text layers
+          // The DraggableText animated style places the view at:
+          //   left: textX - 16,  top: transY - estimatedHeight - 16
+          // with 16px padding inside, so the text baseline visually sits at (layer.x, layer.y).
+          // We replicate that: translate to (layer.x, layer.y) and draw with alphabetic baseline.
+          for (const layer of textLayers) {
+            const scale = layer.scale || 1;
+            const fontSize = layer.fontSize;
+            const estimatedWidth = layer.text.length * fontSize * 0.6;
+
+            // pivot = same pivot used by the Skia Group transform
+            let textX = layer.x;
+            if (layer.align === "center") textX = layer.x - estimatedWidth / 2;
+            if (layer.align === "right") textX = layer.x - estimatedWidth;
+            const pivotX = textX + estimatedWidth / 2;
+            const pivotY = layer.y - (fontSize * 1.4) / 2;
+
+            ctx.save();
+            // Apply scale+rotation around the same pivot point
+            ctx.translate(pivotX, pivotY);
+            ctx.rotate(layer.rotation || 0);
+            ctx.scale(scale, scale);
+            ctx.translate(-pivotX, -pivotY);
+
+            ctx.font = `${layer.bold ? "bold" : "normal"} ${fontSize}px sans-serif`;
+            ctx.textAlign = layer.align as CanvasTextAlign;
+            ctx.textBaseline = "alphabetic";
+
+            if (layer.bgStyle === "solid") {
+              const metrics = ctx.measureText(layer.text);
+              const textH = fontSize * 1.4;
+              let bgX = textX;
+              ctx.fillStyle = "rgba(0,0,0,0.5)";
+              ctx.fillRect(
+                bgX - 4,
+                layer.y - textH,
+                metrics.width + 8,
+                textH + 4,
+              );
+            }
+
+            ctx.fillStyle = layer.color;
+            ctx.fillText(layer.text, layer.x, layer.y);
+            ctx.restore();
+          }
+
+          // Draw sticker layers
+          // DraggableSticker animated style: left: x-16, top: y-40-16
+          // with 16px padding inside → emoji top-left corner visually at (x, y-40).
+          // Emoji font size is 52. We draw with textBaseline "top" at (x, y-40).
+          for (const sticker of stickerLayers) {
+            const scale = sticker.scale || 1;
+            const size = 52;
+            const drawX = sticker.x;
+            const drawY = sticker.y - 40; // matches the -40-16+16 padding cancellation
+            const pivotX = drawX + 26; // ~half emoji width
+            const pivotY = drawY + 26; // ~half emoji height
+
+            ctx.save();
+            ctx.translate(pivotX, pivotY);
+            ctx.rotate(sticker.rotation || 0);
+            ctx.scale(scale, scale);
+            ctx.translate(-pivotX, -pivotY);
+
+            ctx.font = `${size}px sans-serif`;
+            ctx.textBaseline = "top";
+            ctx.fillText(sticker.emoji, drawX, drawY);
+            ctx.restore();
+          }
+
+          const dataUrl = offscreen.toDataURL("image/jpeg", 0.95);
+          setEditedImage(dataUrl);
+          router.back();
+        } catch (err) {
+          console.error("Web export failed:", err);
           setEditedImage(currentUri);
+          router.back();
         }
-        setIsExporting(false);
-        router.back();
-      }, 100);
+      }, 50);
       return;
     }
 
@@ -997,37 +1326,47 @@ export default function PhotoEditorScreen() {
       return;
     }
 
-    // Wrap in setTimeout to ensure the UI has time to re-render and remove bounding boxes
     setTimeout(async () => {
       try {
-        // Use high quality export as per user request
         const uri = await captureRef(captureViewRef, {
           format: "jpg",
           quality: 1,
         });
         setEditedImage(uri);
+        setIsExporting(false);
         router.back();
       } catch (err) {
         console.error("Export failed:", err);
         setEditedImage(currentUri);
+        setIsExporting(false);
         router.back();
       }
     }, 50);
-  }, [currentUri, setEditedImage, router]);
+  }, [
+    currentUri,
+    canvasWidth,
+    canvasHeight,
+    textLayers,
+    stickerLayers,
+    setEditedImage,
+  ]);
 
   const handleToolPress = (tool: EditorTool) => {
     setActiveLayerId(null);
+    setWebColorTarget(null);
     if (tool === "crop") {
       setShowCrop(true);
       return;
     }
     if (tool === "sticker") {
-      setShowStickerSheet(true);
+      if (isDesktop) {
+        setShowStickerSheet((v) => !v);
+      } else {
+        setShowStickerSheet(true);
+      }
       return;
     }
-    if (tool === "draw") {
-      setInitialDrawPaths([...drawPaths]);
-    }
+    if (tool === "draw") setInitialDrawPaths([...drawPaths]);
     setActiveTool((prev) => (prev === tool ? "none" : tool));
   };
 
@@ -1035,6 +1374,19 @@ export default function PhotoEditorScreen() {
     router.back();
   };
 
+  // ── Keyboard shortcut (web) ────────────────────────────────────────────────
+  useEffect(() => {
+    if (Platform.OS !== "web") return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") handleToolCancel();
+      if (e.key === "z" && (e.metaKey || e.ctrlKey)) undoLastPath();
+      if (e.key === "Enter" && activeTool === "text") addTextLayer();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [activeTool, handleToolCancel, undoLastPath, addTextLayer]);
+
+  // ─── Expo Go fallback ──────────────────────────────────────────────────────
   const renderExpoGoFallback = () => (
     <View style={styles.expoGoFallback}>
       <Text style={styles.expoGoTitle}>Photo Editor</Text>
@@ -1048,6 +1400,565 @@ export default function PhotoEditorScreen() {
     </View>
   );
 
+  // ─── Canvas area (shared between web and mobile) ───────────────────────────
+  const renderCanvas = () => (
+    <GestureDetector gesture={canvasGestures}>
+      <View
+        style={[
+          styles.canvasInner,
+          { width: canvasWidth, height: canvasHeight },
+          isDesktop && styles.canvasInnerDesktop,
+        ]}
+        ref={captureViewRef}
+        collapsable={false}
+      >
+        {SkiaEditorCanvasComponent && currentUri ? (
+          <SkiaEditorCanvasComponent
+            ref={canvasRef}
+            imageUri={currentUri}
+            canvasWidth={canvasWidth}
+            canvasHeight={canvasHeight}
+            drawPaths={drawPaths}
+            textLayers={isExporting && Platform.OS === "web" ? textLayers : []}
+            stickerLayers={
+              isExporting && Platform.OS === "web" ? stickerLayers : []
+            }
+          />
+        ) : null}
+
+        {textLayers.map((layer) => (
+          <DraggableText
+            key={layer.id}
+            layer={layer}
+            isActive={activeLayerId === layer.id}
+            isExporting={isExporting}
+            globalScale={globalScale}
+            globalRotation={globalRotation}
+            globalPinchRef={globalPinchRef}
+            globalRotateRef={globalRotateRef}
+            onUpdatePosition={updateTextPosition}
+            onSelect={handleLayerSelect}
+            onDelete={deleteLayer}
+          />
+        ))}
+
+        {stickerLayers.map((sticker) => (
+          <DraggableSticker
+            key={sticker.id}
+            layer={sticker}
+            isActive={activeLayerId === sticker.id}
+            isExporting={isExporting}
+            globalScale={globalScale}
+            globalRotation={globalRotation}
+            globalPinchRef={globalPinchRef}
+            globalRotateRef={globalRotateRef}
+            onUpdateLayer={updateStickerLayer}
+            onSelect={handleLayerSelect}
+            onDelete={deleteLayer}
+          />
+        ))}
+      </View>
+    </GestureDetector>
+  );
+
+  // ─── WEB DESKTOP LAYOUT ────────────────────────────────────────────────────
+  if (!isExpoGo && isDesktop) {
+    const activeColor =
+      activeTool === "draw"
+        ? brushColor
+        : (activeTextLayer?.color ?? textColor);
+
+    return (
+      <>
+        <StatusBar hidden />
+        <GestureHandlerRootView style={{ flex: 1, backgroundColor: "#0e0e12" }}>
+          <GestureDetector gesture={globalTransformGesture}>
+            <View style={dsk.root}>
+              {/* ── Left Sidebar ──────────────────────────────────── */}
+              <Animated.View style={[dsk.sidebar, animatedSidebarStyle]}>
+                {/* Logo / close */}
+                <View style={dsk.sidebarTop}>
+                  <TouchableOpacity onPress={handleCancel} style={dsk.closeBtn}>
+                    <X
+                      size={16}
+                      color="rgba(255,255,255,0.6)"
+                      strokeWidth={2}
+                    />
+                  </TouchableOpacity>
+                </View>
+
+                <View style={dsk.divider} />
+
+                {/* Tool buttons */}
+                <ScrollView
+                  style={{ flex: 1 }}
+                  showsVerticalScrollIndicator={false}
+                  contentContainerStyle={dsk.toolList}
+                >
+                  <SidebarToolBtn
+                    icon={Crop}
+                    label="Crop"
+                    isActive={showCrop}
+                    onPress={() => handleToolPress("crop")}
+                  />
+                  <SidebarToolBtn
+                    icon={Type}
+                    label="Text"
+                    isActive={activeTool === "text"}
+                    onPress={() => handleToolPress("text")}
+                  />
+                  <SidebarToolBtn
+                    icon={Star}
+                    label="Stickers"
+                    isActive={showStickerSheet}
+                    onPress={() => handleToolPress("sticker")}
+                  />
+                  <SidebarToolBtn
+                    icon={Paintbrush}
+                    label="Draw"
+                    isActive={activeTool === "draw"}
+                    onPress={() => handleToolPress("draw")}
+                  />
+
+                  {/* Draw sub-panel */}
+                  {activeTool === "draw" && (
+                    <View style={dsk.subPanel}>
+                      <View style={dsk.subPanelHeader}>
+                        <Text style={dsk.subPanelTitle}>BRUSH</Text>
+                      </View>
+                      {BRUSH_CONFIGS.map((cfg) => {
+                        const IconComp = BRUSH_ICON_COMPONENTS[cfg.type] ?? Pen;
+                        const isAct = activeBrush === cfg.type;
+                        return (
+                          <TouchableOpacity
+                            key={cfg.type}
+                            onPress={() =>
+                              setActiveBrush(cfg.type as BrushType)
+                            }
+                            style={[dsk.brushRow, isAct && dsk.brushRowActive]}
+                          >
+                            <IconComp
+                              size={16}
+                              color={isAct ? "#fff" : "rgba(255,255,255,0.5)"}
+                            />
+                            <Text
+                              style={[
+                                dsk.brushRowLabel,
+                                isAct && { color: "#fff" },
+                              ]}
+                            >
+                              {cfg.type.charAt(0).toUpperCase() +
+                                cfg.type.slice(1)}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                      <TouchableOpacity
+                        onPress={() => setWebColorTarget("draw")}
+                        style={dsk.colorPickerRow}
+                      >
+                        <View
+                          style={[
+                            dsk.colorDot,
+                            { backgroundColor: brushColor },
+                          ]}
+                        />
+                        <Text style={dsk.colorPickerLabel}>Color</Text>
+                      </TouchableOpacity>
+                      {webColorTarget === "draw" && (
+                        <WebColorPanel
+                          visible
+                          selected={brushColor}
+                          onSelect={(c: string) => {
+                            setBrushColor(c);
+                            setWebColorTarget(null);
+                          }}
+                          onClose={() => setWebColorTarget(null)}
+                        />
+                      )}
+                      <TouchableOpacity
+                        onPress={undoLastPath}
+                        style={dsk.undoRow}
+                      >
+                        <Undo2 size={14} color="rgba(255,255,255,0.6)" />
+                        <Text style={dsk.undoLabel}>Undo stroke</Text>
+                        <Text style={dsk.shortcut}>⌘Z</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+
+                  {/* Text sub-panel */}
+                  {activeTool === "text" && (
+                    <View style={dsk.subPanel}>
+                      <View style={dsk.subPanelHeader}>
+                        <Text style={dsk.subPanelTitle}>TEXT</Text>
+                      </View>
+                      {/* Align */}
+                      <View style={dsk.rowBtns}>
+                        {(["left", "center", "right"] as const).map((a) => {
+                          const Ic =
+                            a === "left"
+                              ? AlignLeft
+                              : a === "right"
+                                ? AlignRight
+                                : AlignCenter;
+                          return (
+                            <TouchableOpacity
+                              key={a}
+                              onPress={() => setTextAlign(a)}
+                              style={[
+                                dsk.miniBtn,
+                                textAlign === a && dsk.miniBtnActive,
+                              ]}
+                            >
+                              <Ic
+                                size={14}
+                                color={
+                                  textAlign === a
+                                    ? "#fff"
+                                    : "rgba(255,255,255,0.5)"
+                                }
+                              />
+                            </TouchableOpacity>
+                          );
+                        })}
+                        <TouchableOpacity
+                          onPress={() => setTextBold((b) => !b)}
+                          style={[dsk.miniBtn, textBold && dsk.miniBtnActive]}
+                        >
+                          <Bold
+                            size={14}
+                            color={textBold ? "#fff" : "rgba(255,255,255,0.5)"}
+                          />
+                        </TouchableOpacity>
+                      </View>
+                      {/* BG style */}
+                      <TouchableOpacity
+                        onPress={() =>
+                          setTextBgStyle((s) =>
+                            s === "none" ? "solid" : "none",
+                          )
+                        }
+                        style={[
+                          dsk.toggleRow,
+                          textBgStyle === "solid" && dsk.toggleRowActive,
+                        ]}
+                      >
+                        <Text style={dsk.toggleLabel}>Background</Text>
+                        <View
+                          style={[
+                            dsk.togglePill,
+                            textBgStyle === "solid" && dsk.togglePillOn,
+                          ]}
+                        />
+                      </TouchableOpacity>
+                      {/* Color */}
+                      <TouchableOpacity
+                        onPress={() => setWebColorTarget("text")}
+                        style={dsk.colorPickerRow}
+                      >
+                        <View
+                          style={[dsk.colorDot, { backgroundColor: textColor }]}
+                        />
+                        <Text style={dsk.colorPickerLabel}>Color</Text>
+                      </TouchableOpacity>
+                      {webColorTarget === "text" && (
+                        <WebColorPanel
+                          visible
+                          selected={textColor}
+                          onSelect={(c: string) => {
+                            setTextColor(c);
+                            setWebColorTarget(null);
+                          }}
+                          onClose={() => setWebColorTarget(null)}
+                        />
+                      )}
+                    </View>
+                  )}
+
+                  {/* Sticker sub-panel */}
+                  {showStickerSheet && (
+                    <WebStickerPanel
+                      visible
+                      onSelect={addSticker}
+                      onClose={() => setShowStickerSheet(false)}
+                    />
+                  )}
+
+                  {/* Active text layer controls */}
+                  {activeTool !== "text" && activeTextLayer && (
+                    <View style={dsk.subPanel}>
+                      <View style={dsk.subPanelHeader}>
+                        <Text style={dsk.subPanelTitle}>LAYER</Text>
+                        <TouchableOpacity
+                          onPress={() => deleteLayer(activeTextLayer.id)}
+                        >
+                          <Trash2 size={12} color="rgba(255,80,80,0.8)" />
+                        </TouchableOpacity>
+                      </View>
+                      <View style={dsk.rowBtns}>
+                        {(["left", "center", "right"] as const).map((a) => {
+                          const Ic =
+                            a === "left"
+                              ? AlignLeft
+                              : a === "right"
+                                ? AlignRight
+                                : AlignCenter;
+                          return (
+                            <TouchableOpacity
+                              key={a}
+                              onPress={() =>
+                                updateActiveTextLayer({ align: a })
+                              }
+                              style={[
+                                dsk.miniBtn,
+                                activeTextLayer.align === a &&
+                                  dsk.miniBtnActive,
+                              ]}
+                            >
+                              <Ic
+                                size={14}
+                                color={
+                                  activeTextLayer.align === a
+                                    ? "#fff"
+                                    : "rgba(255,255,255,0.5)"
+                                }
+                              />
+                            </TouchableOpacity>
+                          );
+                        })}
+                        <TouchableOpacity
+                          onPress={() =>
+                            updateActiveTextLayer({
+                              bold: !activeTextLayer.bold,
+                            })
+                          }
+                          style={[
+                            dsk.miniBtn,
+                            activeTextLayer.bold && dsk.miniBtnActive,
+                          ]}
+                        >
+                          <Bold
+                            size={14}
+                            color={
+                              activeTextLayer.bold
+                                ? "#fff"
+                                : "rgba(255,255,255,0.5)"
+                            }
+                          />
+                        </TouchableOpacity>
+                      </View>
+                      <TouchableOpacity
+                        onPress={() =>
+                          updateActiveTextLayer({
+                            bgStyle:
+                              activeTextLayer.bgStyle === "none"
+                                ? "solid"
+                                : "none",
+                          })
+                        }
+                        style={[
+                          dsk.toggleRow,
+                          activeTextLayer.bgStyle === "solid" &&
+                            dsk.toggleRowActive,
+                        ]}
+                      >
+                        <Text style={dsk.toggleLabel}>Background</Text>
+                        <View
+                          style={[
+                            dsk.togglePill,
+                            activeTextLayer.bgStyle === "solid" &&
+                              dsk.togglePillOn,
+                          ]}
+                        />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => setWebColorTarget("layer")}
+                        style={dsk.colorPickerRow}
+                      >
+                        <View
+                          style={[
+                            dsk.colorDot,
+                            { backgroundColor: activeTextLayer.color },
+                          ]}
+                        />
+                        <Text style={dsk.colorPickerLabel}>Color</Text>
+                      </TouchableOpacity>
+                      {webColorTarget === "layer" && (
+                        <WebColorPanel
+                          visible
+                          selected={activeTextLayer.color}
+                          onSelect={(c: string) => {
+                            updateActiveTextLayer({ color: c });
+                            setWebColorTarget(null);
+                          }}
+                          onClose={() => setWebColorTarget(null)}
+                        />
+                      )}
+                    </View>
+                  )}
+                </ScrollView>
+
+                <View style={dsk.divider} />
+
+                {/* Done / Cancel */}
+                <View style={dsk.sidebarBottom}>
+                  <TouchableOpacity
+                    onPress={
+                      activeTool !== "none" ? handleToolDone : handleDone
+                    }
+                    style={[dsk.doneBtn, isExporting && { opacity: 0.8 }]}
+                    disabled={isExporting}
+                  >
+                    {isExporting && activeTool === "none" ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <Text style={dsk.doneBtnLabel}>
+                        {activeTool !== "none" ? "Apply" : "Save"}
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={
+                      activeTool !== "none" ? handleToolCancel : handleCancel
+                    }
+                    style={dsk.cancelBtn}
+                  >
+                    <Text style={dsk.cancelBtnLabel}>
+                      {activeTool !== "none" ? "Cancel" : "Discard"}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </Animated.View>
+
+              {/* ── Canvas area ───────────────────────────────────── */}
+              <View style={dsk.canvasArea}>
+                {/* Top status bar */}
+                <View style={dsk.topBar}>
+                  <Text style={dsk.topBarTitle}>
+                    {activeTool !== "none"
+                      ? activeTool.charAt(0).toUpperCase() + activeTool.slice(1)
+                      : "Edit Photo"}
+                  </Text>
+                  {activeTool === "draw" && (
+                    <Text style={dsk.topBarHint}>
+                      Click and drag to draw · ⌘Z to undo
+                    </Text>
+                  )}
+                  {activeTool === "text" && (
+                    <Text style={dsk.topBarHint}>
+                      Type on screen · Enter to place · Esc to cancel
+                    </Text>
+                  )}
+                </View>
+
+                {/* Canvas */}
+                <View style={dsk.canvasWrapper}>{renderCanvas()}</View>
+
+                {/* Text overlay — same as mobile, works on desktop too */}
+                {activeTool === "text" && (
+                  <View
+                    style={[StyleSheet.absoluteFill, { zIndex: 50 }]}
+                    pointerEvents="box-none"
+                  >
+                    <View
+                      style={styles.textOverlayScrim}
+                      pointerEvents="none"
+                    />
+                    <View style={styles.textOverlayCenter} pointerEvents="none">
+                      <Text
+                        style={[
+                          styles.textOverlayPreview,
+                          {
+                            color: textColor,
+                            fontWeight: textBold ? "700" : "400",
+                            textAlign: textAlign,
+                            backgroundColor:
+                              textBgStyle === "solid"
+                                ? "rgba(0,0,0,0.55)"
+                                : "transparent",
+                          },
+                        ]}
+                      >
+                        {editingText || "Type something..."}
+                      </Text>
+                    </View>
+                    <View style={styles.textOverlayBottom}>
+                      <View style={styles.textControlsRow}>
+                        <TextControlsBar
+                          align={textAlign}
+                          bgStyle={textBgStyle}
+                          color={textColor}
+                          bold={textBold}
+                          onAlignToggle={() =>
+                            setTextAlign((a) =>
+                              a === "left"
+                                ? "center"
+                                : a === "center"
+                                  ? "right"
+                                  : "left",
+                            )
+                          }
+                          onBgToggle={() =>
+                            setTextBgStyle((s) =>
+                              s === "none" ? "solid" : "none",
+                            )
+                          }
+                          onBoldToggle={() => setTextBold((b) => !b)}
+                          onColorPress={() => setWebColorTarget("text")}
+                        />
+                      </View>
+                      <TextInput
+                        style={styles.textOverlayHiddenInput}
+                        value={editingText}
+                        onChangeText={setEditingText}
+                        autoFocus
+                        multiline
+                        returnKeyType="done"
+                        onSubmitEditing={addTextLayer}
+                        blurOnSubmit
+                        caretHidden={false}
+                      />
+                    </View>
+                  </View>
+                )}
+
+                {/* Shortcut hints */}
+                {activeTool === "none" && (
+                  <View style={dsk.hints}>
+                    <Text style={dsk.hintText}>
+                      ← Use the sidebar to add text, stickers, or draw
+                    </Text>
+                  </View>
+                )}
+              </View>
+            </View>
+          </GestureDetector>
+        </GestureHandlerRootView>
+
+        {/* Crop modal */}
+        {showCrop && (
+          <View style={[StyleSheet.absoluteFill, { zIndex: 999 }]}>
+            <ImageCropModal
+              visible={showCrop}
+              imageUri={currentUri}
+              imageWidth={imageWidth}
+              imageHeight={imageHeight}
+              allowRatioChange
+              presentationStyle="inline"
+              onConfirm={(uri: string) => {
+                setCurrentUri(uri);
+                setShowCrop(false);
+              }}
+              onCancel={() => setShowCrop(false)}
+            />
+          </View>
+        )}
+      </>
+    );
+  }
+
+  // ─── MOBILE / EXPO GO LAYOUT ───────────────────────────────────────────────
   return (
     <>
       <StatusBar hidden />
@@ -1055,15 +1966,13 @@ export default function PhotoEditorScreen() {
         {isExpoGo ? (
           renderExpoGoFallback()
         ) : (
-          // The outermost GestureDetector captures pinch/rotate across the ENTIRE screen
-          // so one finger can be on the active layer while the other is anywhere.
           <GestureDetector gesture={globalTransformGesture}>
             <KeyboardAvoidingView
               style={{ flex: 1 }}
               behavior={Platform.OS === "ios" ? "padding" : "height"}
             >
               <View style={styles.root}>
-                {/* ── Top Bar ─────────────────────────────────────────── */}
+                {/* Top Bar */}
                 <View style={styles.topBar}>
                   <TouchableOpacity
                     onPress={
@@ -1087,86 +1996,32 @@ export default function PhotoEditorScreen() {
                     onPress={
                       activeTool !== "none" ? handleToolDone : handleDone
                     }
-                    style={[styles.pillBtn, styles.doneBtn]}
+                    style={[
+                      styles.pillBtn,
+                      styles.doneBtn,
+                      isExporting && { opacity: 0.8 },
+                    ]}
+                    disabled={isExporting}
                   >
-                    <Text
-                      style={[
-                        styles.pillBtnText,
-                        { color: "#fff", fontWeight: "700" },
-                      ]}
-                    >
-                      Done
-                    </Text>
+                    {isExporting && activeTool === "none" ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <Text
+                        style={[
+                          styles.pillBtnText,
+                          { color: "#fff", fontWeight: "700" },
+                        ]}
+                      >
+                        Done
+                      </Text>
+                    )}
                   </TouchableOpacity>
                 </View>
 
-                {/* ── Canvas Area ─────────────────────────────────────── */}
-                <View style={styles.canvasContainer}>
-                  <GestureDetector gesture={canvasGestures}>
-                    <View
-                      style={[
-                        styles.canvasInner,
-                        { width: canvasWidth, height: canvasHeight },
-                      ]}
-                      ref={captureViewRef}
-                      collapsable={false}
-                    >
-                      {SkiaEditorCanvasComponent && currentUri ? (
-                        <SkiaEditorCanvasComponent
-                          ref={canvasRef}
-                          imageUri={currentUri}
-                          canvasWidth={canvasWidth}
-                          canvasHeight={canvasHeight}
-                          drawPaths={drawPaths}
-                          textLayers={
-                            isExporting && Platform.OS === "web"
-                              ? textLayers
-                              : []
-                          }
-                          stickerLayers={
-                            isExporting && Platform.OS === "web"
-                              ? stickerLayers
-                              : []
-                          }
-                        />
-                      ) : null}
+                {/* Canvas */}
+                <View style={styles.canvasContainer}>{renderCanvas()}</View>
 
-                      {textLayers.map((layer) => (
-                        <DraggableText
-                          key={layer.id}
-                          layer={layer}
-                          isActive={activeLayerId === layer.id}
-                          isExporting={isExporting}
-                          globalScale={globalScale}
-                          globalRotation={globalRotation}
-                          globalPinchRef={globalPinchRef}
-                          globalRotateRef={globalRotateRef}
-                          onUpdatePosition={updateTextPosition}
-                          onSelect={handleLayerSelect}
-                          onDelete={deleteLayer}
-                        />
-                      ))}
-
-                      {stickerLayers.map((sticker) => (
-                        <DraggableSticker
-                          key={sticker.id}
-                          layer={sticker}
-                          isActive={activeLayerId === sticker.id}
-                          isExporting={isExporting}
-                          globalScale={globalScale}
-                          globalRotation={globalRotation}
-                          globalPinchRef={globalPinchRef}
-                          globalRotateRef={globalRotateRef}
-                          onUpdateLayer={updateStickerLayer}
-                          onSelect={handleLayerSelect}
-                          onDelete={deleteLayer}
-                        />
-                      ))}
-                    </View>
-                  </GestureDetector>
-                </View>
-
-                {/* ── Draw Toolbar ────────────────────────────────────── */}
+                {/* Draw Toolbar */}
                 {activeTool === "draw" && (
                   <DrawToolbar
                     activeBrush={activeBrush}
@@ -1180,7 +2035,7 @@ export default function PhotoEditorScreen() {
                   />
                 )}
 
-                {/* ── Active-layer text controls (above toolbar) ─────────── */}
+                {/* Active-layer text controls */}
                 {activeTool !== "text" && activeTextLayer && (
                   <View style={styles.aboveToolbarControls}>
                     <TextControlsBar
@@ -1217,7 +2072,7 @@ export default function PhotoEditorScreen() {
                   </View>
                 )}
 
-                {/* ── Main Bottom Toolbar ──────────────────────────────── */}
+                {/* Main Bottom Toolbar */}
                 {activeTool !== "draw" && activeTool !== "text" && (
                   <View style={styles.bottomToolbar}>
                     {TOOLS.map((tool) => {
@@ -1248,20 +2103,17 @@ export default function PhotoEditorScreen() {
                   </View>
                 )}
 
-                {/* ── Pinterest-style Text Editing Overlay (renders LAST = on top) ─ */}
+                {/* Text Editing Overlay */}
                 {activeTool === "text" && (
                   <KeyboardAvoidingView
                     style={[StyleSheet.absoluteFill, { zIndex: 50 }]}
                     behavior={Platform.OS === "ios" ? "padding" : "height"}
                     pointerEvents="box-none"
                   >
-                    {/* Dark scrim */}
                     <View
                       style={styles.textOverlayScrim}
                       pointerEvents="none"
                     />
-
-                    {/* Centered text preview */}
                     <View style={styles.textOverlayCenter} pointerEvents="none">
                       <Text
                         style={[
@@ -1280,8 +2132,6 @@ export default function PhotoEditorScreen() {
                         {editingText || "Type something..."}
                       </Text>
                     </View>
-
-                    {/* Controls + hidden input pinned above keyboard */}
                     <View style={styles.textOverlayBottom}>
                       <View style={styles.textControlsRow}>
                         <TextControlsBar
@@ -1325,7 +2175,7 @@ export default function PhotoEditorScreen() {
                   </KeyboardAvoidingView>
                 )}
 
-                {/* ── Color picker and sticker sheet (Renders AFTER text overlay to be on top) ── */}
+                {/* Color sheet + sticker sheet (mobile) */}
                 <ColorSheet
                   visible={showColorSheet}
                   selected={
@@ -1379,6 +2229,7 @@ export default function PhotoEditorScreen() {
   );
 }
 
+// ─── Tool list (mobile) ───────────────────────────────────────────────────────
 const TOOLS = [
   { id: "crop", label: "Size", Icon: Crop },
   { id: "none", label: "Media", Icon: ImageIcon },
@@ -1387,8 +2238,196 @@ const TOOLS = [
   { id: "draw", label: "Draw", Icon: Paintbrush },
 ];
 
+// ─── Desktop styles ───────────────────────────────────────────────────────────
+const dsk = StyleSheet.create({
+  root: { flex: 1, flexDirection: "row", backgroundColor: "#0e0e12" },
+
+  // Sidebar
+  sidebar: {
+    width: SIDEBAR_WIDTH,
+    backgroundColor: SIDEBAR_BG,
+    borderRightWidth: 1,
+    borderRightColor: BORDER,
+    flexDirection: "column",
+    paddingTop: 16,
+    paddingBottom: 16,
+  },
+  sidebarTop: { alignItems: "center", paddingBottom: 12 },
+  closeBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: SURFACE,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  divider: {
+    height: 1,
+    backgroundColor: BORDER,
+    marginHorizontal: 12,
+    marginVertical: 4,
+  },
+  toolList: { paddingHorizontal: 8, paddingTop: 8, gap: 2 },
+
+  // Sub-panels
+  subPanel: {
+    marginTop: 8,
+    backgroundColor: "rgba(255,255,255,0.04)",
+    borderRadius: 12,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: BORDER,
+  },
+  subPanelHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  subPanelTitle: {
+    color: "rgba(255,255,255,0.35)",
+    fontSize: 9,
+    fontWeight: "700",
+    letterSpacing: 1.2,
+  },
+  brushRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    marginBottom: 2,
+  },
+  brushRowActive: { backgroundColor: "rgba(108,99,255,0.2)" },
+  brushRowLabel: { color: "rgba(255,255,255,0.45)", fontSize: 12 },
+  colorPickerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    marginTop: 4,
+  },
+  colorDot: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: "rgba(255,255,255,0.2)",
+  },
+  colorPickerLabel: { color: "rgba(255,255,255,0.55)", fontSize: 12 },
+  undoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+    marginTop: 4,
+  },
+  undoLabel: { color: "rgba(255,255,255,0.45)", fontSize: 11, flex: 1 },
+  shortcut: { color: "rgba(255,255,255,0.2)", fontSize: 10 },
+  rowBtns: { flexDirection: "row", gap: 4, marginBottom: 6 },
+  miniBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    backgroundColor: SURFACE,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  miniBtnActive: { backgroundColor: ACCENT },
+  toggleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+    borderRadius: 8,
+    marginBottom: 4,
+  },
+  toggleRowActive: { backgroundColor: "rgba(108,99,255,0.1)" },
+  toggleLabel: { color: "rgba(255,255,255,0.5)", fontSize: 11 },
+  togglePill: {
+    width: 28,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: "rgba(255,255,255,0.12)",
+  },
+  togglePillOn: { backgroundColor: ACCENT },
+
+  // Sidebar bottom
+  sidebarBottom: { paddingHorizontal: 10, gap: 6 },
+  doneBtn: {
+    backgroundColor: ACCENT,
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: "center",
+  },
+  doneBtnLabel: { color: "#fff", fontWeight: "700", fontSize: 13 },
+  cancelBtn: {
+    backgroundColor: SURFACE,
+    borderRadius: 10,
+    paddingVertical: 8,
+    alignItems: "center",
+  },
+  cancelBtnLabel: { color: "rgba(255,255,255,0.5)", fontSize: 12 },
+
+  // Canvas area
+  canvasArea: { flex: 1, flexDirection: "column" },
+  topBar: {
+    height: 52,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 24,
+    borderBottomWidth: 1,
+    borderBottomColor: BORDER,
+    gap: 12,
+  },
+  topBarTitle: { color: "#fff", fontWeight: "600", fontSize: 15 },
+  topBarHint: { color: "rgba(255,255,255,0.35)", fontSize: 12 },
+  canvasWrapper: { flex: 1, alignItems: "center", justifyContent: "center" },
+  canvasInnerDesktop: { boxShadow: "0 8px 40px rgba(0,0,0,0.6)" } as any,
+
+  // Text input row
+  textInputRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    borderTopWidth: 1,
+    borderTopColor: BORDER,
+    backgroundColor: "rgba(14,14,18,0.95)",
+  },
+  textInput: {
+    flex: 1,
+    backgroundColor: SURFACE,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    color: "#fff",
+    fontSize: 15,
+    borderWidth: 1,
+    borderColor: BORDER,
+  },
+  placeBtn: {
+    backgroundColor: ACCENT,
+    borderRadius: 10,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+  },
+  placeBtnLabel: { color: "#fff", fontWeight: "700", fontSize: 14 },
+
+  // Hints
+  hints: { paddingHorizontal: 24, paddingBottom: 16, alignItems: "center" },
+  hintText: { color: "rgba(255,255,255,0.2)", fontSize: 12 },
+});
+
+// ─── Mobile styles ────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: EDITOR_BG },
+  canvasInnerDesktop: { boxShadow: "0 8px 40px rgba(0,0,0,0.6)" } as any,
   topBar: {
     flexDirection: "row",
     alignItems: "center",
@@ -1423,7 +2462,20 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   stickerEmoji: { fontSize: 52 },
-  // Pinterest-style text editing overlay
+  layerDeleteBtn: {
+    position: "absolute",
+    top: -12,
+    left: -12,
+    backgroundColor: "rgba(20,20,20,0.8)",
+    borderRadius: 16,
+    width: 32,
+    height: 32,
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 10,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.2)",
+  },
   textOverlayScrim: {
     position: "absolute",
     top: 0,
@@ -1468,22 +2520,12 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 16,
   },
-  // A transparent input that sits at the bottom and grabs keyboard focus
   textOverlayHiddenInput: { height: 1, opacity: 0 },
-  // Controls bar that sits directly above the main bottom toolbar
   aboveToolbarControls: {
     flexDirection: "row",
     justifyContent: "center",
     paddingVertical: 8,
     backgroundColor: "rgba(20,20,20,0.85)",
-  },
-  floatingTextControls: {
-    position: "absolute",
-    bottom: 8,
-    left: 0,
-    right: 0,
-    alignItems: "center",
-    zIndex: 20,
   },
   bottomToolbar: {
     flexDirection: "row",
