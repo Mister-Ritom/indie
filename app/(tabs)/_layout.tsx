@@ -1,30 +1,30 @@
-import React from "react";
+import { useEffect } from "react";
 import { View, Platform } from "react-native";
 import { Tabs } from "expo-router";
 import { Home, Search, PlusCircle, Bell, User } from "lucide-react-native";
 import { useTheme } from "@/hooks/useTheme";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 import { WebSidebar } from "@/components/layout/WebSidebar";
-// Add this outside the component
-if (Platform.OS === "web") {
-  const style = document.createElement("style");
-  style.textContent = `
-    div[role="tablist"] {
-      width: 100% !important;
-      display: flex !important;
-    }
-    div[role="tablist"] > * {
-      flex: 1 !important;
-      justify-content: center !important;
-      align-items: center !important;
-    }
-  `;
-  document.head.appendChild(style);
-}
 export default function TabLayout() {
   const { colors } = useTheme();
   const { showSidebar } = useBreakpoint();
-
+  useEffect(() => {
+    if (Platform.OS === "web") {
+      const style = document.createElement("style");
+      style.textContent = `
+        div[role="tablist"] {
+          width: 100% !important;
+          display: flex !important;
+        }
+        div[role="tablist"] > * {
+          flex: 1 !important;
+          justify-content: center !important;
+          align-items: center !important;
+        }
+      `;
+      document.head.appendChild(style);
+    }
+  }, []);
   return (
     <View
       style={{
