@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { supabase } from "@/lib/supabase/client";
 import { loginSchema, type LoginForm } from "@/utils/validators";
+import LogoCard from "@/components/ui/LogoCard";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -106,27 +107,38 @@ export default function LoginScreen() {
         >
           {/* This wrapper keeps the form contained and centered on desktop */}
           <View style={{ width: "100%", maxWidth: 420, alignSelf: "center" }}>
-            {/* Logo */}
-            <View style={{ alignItems: "center", marginBottom: spacing.xxl }}>
-              <Text
+            <View style={{ alignItems: "center", marginBottom: spacing.lg }}>
+              <LogoCard width={120} height={120} />
+              <View
                 style={{
-                  fontFamily: typography.families.headingBold,
-                  fontSize: 48,
-                  color: colors.primary,
+                  flexDirection: "row",
+                  alignItems: "baseline",
+                  marginTop: spacing.sm,
+                  gap: 6,
                 }}
               >
-                Indie
-              </Text>
-              <Text
-                style={{
-                  fontFamily: typography.families.body,
-                  fontSize: typography.scale.bodyLarge,
-                  color: colors.textSecondary,
-                  marginTop: spacing.xs,
-                }}
-              >
-                Discover ideas you'll love
-              </Text>
+                <Text
+                  style={{
+                    fontFamily: typography.families.body,
+                    fontSize: typography.scale.caption,
+                    color: colors.textTertiary,
+                    letterSpacing: 1.5,
+                    textTransform: "uppercase",
+                  }}
+                >
+                  by
+                </Text>
+                <Text
+                  style={{
+                    fontFamily: typography.families.headingBold,
+                    fontSize: typography.scale.body,
+                    color: colors.text,
+                    letterSpacing: 0.5,
+                  }}
+                >
+                  Ritom
+                </Text>
+              </View>
             </View>
 
             {/* Google Sign In */}
@@ -307,15 +319,25 @@ export default function LoginScreen() {
                 gap: 4,
               }}
             >
+              <Text
+                style={{
+                  fontFamily: typography.families.body,
+                  fontSize: typography.scale.caption,
+                  color: colors.textTertiary,
+                }}
+              >
+                By signing in you agree to our{" "}
+              </Text>
               <TouchableOpacity onPress={() => router.push("/legal/terms")}>
                 <Text
                   style={{
                     fontFamily: typography.families.body,
                     fontSize: typography.scale.caption,
                     color: colors.textTertiary,
+                    textDecorationLine: "underline",
                   }}
                 >
-                  Terms
+                  Terms of Service
                 </Text>
               </TouchableOpacity>
               <Text
@@ -325,7 +347,8 @@ export default function LoginScreen() {
                   color: colors.textTertiary,
                 }}
               >
-                ·
+                {" "}
+                and{" "}
               </Text>
               <TouchableOpacity onPress={() => router.push("/legal/privacy")}>
                 <Text
@@ -333,9 +356,10 @@ export default function LoginScreen() {
                     fontFamily: typography.families.body,
                     fontSize: typography.scale.caption,
                     color: colors.textTertiary,
+                    textDecorationLine: "underline",
                   }}
                 >
-                  Privacy
+                  Privacy Policy
                 </Text>
               </TouchableOpacity>
             </View>

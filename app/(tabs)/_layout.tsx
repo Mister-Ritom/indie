@@ -1,17 +1,39 @@
 import React from "react";
-import { View } from "react-native";
+import { View, Platform } from "react-native";
 import { Tabs } from "expo-router";
 import { Home, Search, PlusCircle, Bell, User } from "lucide-react-native";
 import { useTheme } from "@/hooks/useTheme";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 import { WebSidebar } from "@/components/layout/WebSidebar";
-
+// Add this outside the component
+if (Platform.OS === "web") {
+  const style = document.createElement("style");
+  style.textContent = `
+    div[role="tablist"] {
+      width: 100% !important;
+      display: flex !important;
+    }
+    div[role="tablist"] > * {
+      flex: 1 !important;
+      justify-content: center !important;
+      align-items: center !important;
+    }
+  `;
+  document.head.appendChild(style);
+}
 export default function TabLayout() {
   const { colors } = useTheme();
   const { showSidebar } = useBreakpoint();
 
   return (
-    <View style={{ flex: 1, flexDirection: "row" }}>
+    <View
+      style={{
+        flex: 1,
+        flexDirection: "row",
+        width: "100%",
+        overflow: "hidden",
+      }}
+    >
       {showSidebar && <WebSidebar />}
 
       <View style={{ flex: 1, backgroundColor: colors.background }}>
@@ -27,11 +49,18 @@ export default function TabLayout() {
                   borderTopColor: colors.tabBarBorder,
                   elevation: 0,
                   height: 60,
+                  width: "100%",
+                  alignSelf: "stretch",
                   justifyContent: "center",
                   alignItems: "center",
                 },
+
             tabBarActiveTintColor: colors.tabBarActive,
             tabBarInactiveTintColor: colors.tabBarInactive,
+            tabBarItemStyle: {
+              flex: 1, // ← each item takes equal share of full width
+              minWidth: 0,
+            },
           }}
         >
           <Tabs.Screen

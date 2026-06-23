@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/Button";
 import { supabase } from "@/lib/supabase/client";
 import { signUpSchema, type SignUpForm } from "@/utils/validators";
 import { usernameFromName } from "@/utils/formatters";
+import LogoCard from "@/components/ui/LogoCard";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -164,22 +165,14 @@ export default function SignupScreen() {
         >
           {/* Main content wrapper constraint */}
           <View style={{ width: "100%", maxWidth: 420, alignSelf: "center" }}>
-            <View style={{ alignItems: "center", marginBottom: spacing.xl }}>
-              <Text
-                style={{
-                  fontFamily: typography.families.headingBold,
-                  fontSize: 40,
-                  color: colors.primary,
-                }}
-              >
-                Indie
-              </Text>
+            <View style={{ alignItems: "center", marginBottom: spacing.md }}>
+              <LogoCard width={120} height={120} />
               <Text
                 style={{
                   fontFamily: typography.families.body,
                   fontSize: typography.scale.body,
                   color: colors.textSecondary,
-                  marginTop: spacing.xs,
+                  marginTop: spacing.md,
                 }}
               >
                 Create your account
@@ -373,6 +366,61 @@ export default function SignupScreen() {
                 </Text>
               </TouchableOpacity>
             </View>
+            {/* Legal */}
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "center",
+                flexWrap: "wrap",
+                marginTop: spacing.md,
+                gap: 4,
+              }}
+            >
+              <Text
+                style={{
+                  fontFamily: typography.families.body,
+                  fontSize: typography.scale.caption,
+                  color: colors.textTertiary,
+                }}
+              >
+                By signing up you agree to our{" "}
+              </Text>
+              <TouchableOpacity onPress={() => router.push("/legal/terms")}>
+                <Text
+                  style={{
+                    fontFamily: typography.families.body,
+                    fontSize: typography.scale.caption,
+                    color: colors.textTertiary,
+                    textDecorationLine: "underline",
+                  }}
+                >
+                  Terms of Service
+                </Text>
+              </TouchableOpacity>
+              <Text
+                style={{
+                  fontFamily: typography.families.body,
+                  fontSize: typography.scale.caption,
+                  color: colors.textTertiary,
+                }}
+              >
+                {" "}
+                and{" "}
+              </Text>
+              <TouchableOpacity onPress={() => router.push("/legal/privacy")}>
+                <Text
+                  style={{
+                    fontFamily: typography.families.body,
+                    fontSize: typography.scale.caption,
+                    color: colors.textTertiary,
+                    textDecorationLine: "underline",
+                  }}
+                >
+                  Privacy Policy
+                </Text>
+              </TouchableOpacity>
+            </View>
+            <View style={{ height: spacing.xxxl }} />
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
