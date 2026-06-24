@@ -6,11 +6,10 @@ import {
   TouchableOpacity,
   Share,
   RefreshControl,
-  StyleSheet,
 } from "react-native";
 import { Image } from "expo-image";
 import { router } from "expo-router";
-import { Settings, Share as ShareIcon, Plus } from "lucide-react-native";
+import { Settings, Share as ShareIcon } from "lucide-react-native";
 import { useTheme } from "@/hooks/useTheme";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
@@ -24,6 +23,14 @@ interface ProfileViewProps {
   userId: string;
   isCurrentUser: boolean;
 }
+
+const absoluteFill = {
+  position: "absolute" as const,
+  top: 0,
+  left: 0,
+  right: 0,
+  bottom: 0,
+};
 
 export function ProfileView({ userId, isCurrentUser }: ProfileViewProps) {
   const { colors, spacing, typography, radius } = useTheme();
@@ -40,7 +47,6 @@ export function ProfileView({ userId, isCurrentUser }: ProfileViewProps) {
   const fetchProfile = useCallback(
     async (background = false) => {
       if (!background) setIsLoading(true);
-      // Fetch profile with basic stats
       const { data: p } = await supabase
         .from("profiles")
         .select("*")
@@ -48,7 +54,6 @@ export function ProfileView({ userId, isCurrentUser }: ProfileViewProps) {
         .single();
 
       if (p) {
-        // Fetch counts (parallel)
         const [
           pinsCount,
           followersCount,
@@ -119,7 +124,6 @@ export function ProfileView({ userId, isCurrentUser }: ProfileViewProps) {
         .order("created_at", { ascending: false });
       setBoards(data ?? []);
 
-      // Fetch recent saves for the "All Pins" card cover
       const { data: savesData, error: savesError } = await supabase
         .from("saves")
         .select("pin:pin_id(id, assets:pin_assets(*))")
@@ -132,7 +136,6 @@ export function ProfileView({ userId, isCurrentUser }: ProfileViewProps) {
       }
 
       if (savesData) {
-        // Supabase might return pin as an object or array depending on relation, ensure safe access
         const urls = savesData
           .map((s: any) => {
             const pin = Array.isArray(s.pin) ? s.pin[0] : s.pin;
@@ -143,7 +146,6 @@ export function ProfileView({ userId, isCurrentUser }: ProfileViewProps) {
             return thumb ? thumb.url : pin.assets[0].url;
           })
           .filter(Boolean);
-        console.log("Fetched recent save URLs:", urls);
         setRecentSaves(urls);
       }
     }
@@ -204,7 +206,6 @@ export function ProfileView({ userId, isCurrentUser }: ProfileViewProps) {
 
   if (!profile) return null;
 
-  // Use the global auth profile if this is the current user so edits show up instantly
   const displayProfile =
     isCurrentUser && authProfile ? { ...profile, ...authProfile } : profile;
 
@@ -221,6 +222,7 @@ export function ProfileView({ userId, isCurrentUser }: ProfileViewProps) {
         />
       }
     >
+      {/* Header */}
       <View style={{ alignItems: "center", padding: spacing.xl }}>
         <Avatar
           uri={displayProfile.avatar_url}
@@ -247,9 +249,10 @@ export function ProfileView({ userId, isCurrentUser }: ProfileViewProps) {
             marginTop: 4,
           }}
         >
-          @{displayProfile.username}
+          {`@${displayProfile.username}`}
         </Text>
 
+        {/* Followers / Following row — each stat is its own Text to avoid nested View text issues */}
         <View
           style={{
             flexDirection: "row",
@@ -265,16 +268,17 @@ export function ProfileView({ userId, isCurrentUser }: ProfileViewProps) {
               color: colors.text,
             }}
           >
-            {formatCount(displayProfile.followers_count)}{" "}
+            {`${formatCount(displayProfile.followers_count)} `}
             <Text
               style={{
                 color: colors.textSecondary,
                 fontFamily: typography.families.body,
               }}
             >
-              followers
+              {"followers"}
             </Text>
           </Text>
+
           <Text
             style={{
               fontFamily: typography.families.bodyMedium,
@@ -282,8 +286,9 @@ export function ProfileView({ userId, isCurrentUser }: ProfileViewProps) {
               color: colors.textSecondary,
             }}
           >
-            ·
+            {"·"}
           </Text>
+
           <Text
             style={{
               fontFamily: typography.families.bodyMedium,
@@ -291,19 +296,19 @@ export function ProfileView({ userId, isCurrentUser }: ProfileViewProps) {
               color: colors.text,
             }}
           >
-            {formatCount(displayProfile.following_count)}{" "}
+            {`${formatCount(displayProfile.following_count)} `}
             <Text
               style={{
                 color: colors.textSecondary,
                 fontFamily: typography.families.body,
               }}
             >
-              following
+              {"following"}
             </Text>
           </Text>
         </View>
 
-        {displayProfile.bio && (
+        {displayProfile.bio ? (
           <Text
             style={{
               fontFamily: typography.families.body,
@@ -316,8 +321,9 @@ export function ProfileView({ userId, isCurrentUser }: ProfileViewProps) {
           >
             {displayProfile.bio}
           </Text>
-        )}
+        ) : null}
 
+        {/* Action buttons */}
         <View
           style={{
             flexDirection: "row",
@@ -390,9 +396,10 @@ export function ProfileView({ userId, isCurrentUser }: ProfileViewProps) {
                 activeTab === "created" ? colors.text : colors.textSecondary,
             }}
           >
-            Created
+            {"Created"}
           </Text>
         </TouchableOpacity>
+
         <TouchableOpacity
           onPress={() => setActiveTab("saved")}
           style={{
@@ -412,7 +419,7 @@ export function ProfileView({ userId, isCurrentUser }: ProfileViewProps) {
               color: activeTab === "saved" ? colors.text : colors.textSecondary,
             }}
           >
-            Saved
+            {"Saved"}
           </Text>
         </TouchableOpacity>
       </View>
@@ -434,7 +441,7 @@ export function ProfileView({ userId, isCurrentUser }: ProfileViewProps) {
               gap: spacing.md,
             }}
           >
-            {/* All Pins Card */}
+            {/* All / Quick Saves Card */}
             {(isCurrentUser || !displayProfile.all_saves_private) && (
               <TouchableOpacity
                 onPress={() => router.push(`/saved-pins?userId=${userId}`)}
@@ -446,10 +453,11 @@ export function ProfileView({ userId, isCurrentUser }: ProfileViewProps) {
                   overflow: "hidden",
                 }}
               >
+                {/* Cover mosaic */}
                 {recentSaves.length > 0 && (
                   <View
                     style={{
-                      ...StyleSheet.absoluteFillObject,
+                      ...absoluteFill,
                       flexDirection: "row",
                       flexWrap: "wrap",
                     }}
@@ -469,21 +477,23 @@ export function ProfileView({ userId, isCurrentUser }: ProfileViewProps) {
                         />
                       </View>
                     ))}
+                    {/* Scrim */}
                     <View
                       style={{
-                        ...StyleSheet.absoluteFillObject,
+                        ...absoluteFill,
                         backgroundColor: "rgba(0,0,0,0.3)",
                       }}
                     />
                   </View>
                 )}
+
+                {/* Label */}
                 <View
                   style={{
-                    ...StyleSheet.absoluteFillObject,
+                    ...absoluteFill,
                     padding: spacing.md,
                     justifyContent: "flex-end",
                     zIndex: 10,
-                    elevation: 10,
                   }}
                   pointerEvents="none"
                 >
@@ -494,13 +504,13 @@ export function ProfileView({ userId, isCurrentUser }: ProfileViewProps) {
                       color: recentSaves.length > 0 ? "#fff" : colors.text,
                     }}
                   >
-                    Quck Saves
+                    {"Quick Saves"}
                   </Text>
                 </View>
               </TouchableOpacity>
             )}
 
-            {/* Boards Grid */}
+            {/* Board cards */}
             {boards.map((board) => (
               <TouchableOpacity
                 key={board.id}
@@ -513,7 +523,6 @@ export function ProfileView({ userId, isCurrentUser }: ProfileViewProps) {
                   overflow: "hidden",
                 }}
               >
-                {/* Simplified Board Card */}
                 <View
                   style={{
                     flex: 1,
@@ -530,7 +539,7 @@ export function ProfileView({ userId, isCurrentUser }: ProfileViewProps) {
                   >
                     {board.name}
                   </Text>
-                  {board.is_private && (
+                  {board.is_private ? (
                     <Text
                       style={{
                         fontFamily: typography.families.body,
@@ -538,9 +547,9 @@ export function ProfileView({ userId, isCurrentUser }: ProfileViewProps) {
                         color: colors.textSecondary,
                       }}
                     >
-                      Private
+                      {"Private"}
                     </Text>
-                  )}
+                  ) : null}
                 </View>
               </TouchableOpacity>
             ))}
