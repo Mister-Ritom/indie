@@ -69,8 +69,7 @@ export default function CreateMenuScreen() {
       style={{
         flex: 1,
         backgroundColor: "transparent",
-        // CHANGED: Center content on Web, align to bottom on Native
-        justifyContent: isWeb ? "center" : "flex-end",
+        justifyContent: "flex-end",
         alignItems: isWeb ? "center" : "stretch",
       }}
     >
@@ -83,7 +82,10 @@ export default function CreateMenuScreen() {
             left: 0,
             right: 0,
             bottom: 0,
-            backgroundColor: "rgba(0,0,0,0.55)",
+            backgroundColor: Platform.select({
+              default: "transparent",
+              web: "rgba(0, 0, 0, 0.5)", // Dimmed backdrop for web modal
+            }),
           }}
         />
       </TouchableWithoutFeedback>

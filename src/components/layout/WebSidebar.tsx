@@ -23,6 +23,7 @@ import { Badge } from "@/components/ui/Badge";
 import { useAuthStore } from "@/stores/authStore";
 import { useNotifications } from "@/hooks/useNotifications";
 import { supabase } from "@/lib/supabase/client";
+import LogoCard from "../ui/LogoCard";
 
 const NAV_ITEMS = [
   { label: "Home", icon: Home, href: "/(tabs)/" },
@@ -79,18 +80,13 @@ export function WebSidebar() {
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Logo */}
         <View
-          style={{ marginBottom: spacing.xl, paddingHorizontal: spacing.sm }}
+          style={{
+            marginBottom: spacing.md,
+            paddingHorizontal: spacing.sm,
+            alignItems: "flex-start",
+          }}
         >
-          <Text
-            style={{
-              fontFamily: typography.families.headingBold,
-              fontSize: typography.scale.h1,
-              color: colors.primary,
-              letterSpacing: -0.5,
-            }}
-          >
-            Indie
-          </Text>
+          <LogoCard width={64} height={64} />
         </View>
 
         {/* Nav Items */}

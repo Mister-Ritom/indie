@@ -1,135 +1,67 @@
 import { useEffect } from "react";
-import { View, Platform } from "react-native";
-import { Tabs } from "expo-router";
-import { Home, Search, PlusCircle, Bell, User } from "lucide-react-native";
-import { useTheme } from "@/hooks/useTheme";
-import { useBreakpoint } from "@/hooks/useBreakpoint";
-import { WebSidebar } from "@/components/layout/WebSidebar";
+import { View, Platform, Dimensions, Pressable } from "react-native";
+import { NativeTabs } from "expo-router/unstable-native-tabs";
+import { router } from "expo-router";
+import { useNotifications } from "@/hooks/useNotifications";
+const TAB_COUNT = 5;
+const CREATE_TAB_INDEX = 2;
 export default function TabLayout() {
-  const { colors } = useTheme();
-  const { showSidebar } = useBreakpoint();
+  const screenWidth = Dimensions.get("window").width;
+  const tabWidth = screenWidth / TAB_COUNT;
+
+  const TAB_BAR_HEIGHT = Platform.OS === "ios" ? 83 : 56;
   useEffect(() => {
-    if (Platform.OS === "web") {
-      const style = document.createElement("style");
-      style.textContent = `
-        div[role="tablist"] {
-          width: 100% !important;
-          display: flex !important;
-        }
-        div[role="tablist"] > * {
-          flex: 1 !important;
-          justify-content: center !important;
-          align-items: center !important;
-        }
-      `;
-      document.head.appendChild(style);
-    }
+    router.prefetch("/create-menu");
   }, []);
+
+  const { unreadCount } = useNotifications();
+
+  // Native mobile: true native tabs
   return (
-    <View
-      style={{
-        flex: 1,
-        flexDirection: "row",
-        width: "100%",
-        overflow: "hidden",
-      }}
-    >
-      {showSidebar && <WebSidebar />}
+    <View style={{ flex: 1 }}>
+      <NativeTabs minimizeBehavior="onScrollDown">
+        <NativeTabs.Trigger name="index">
+          <NativeTabs.Trigger.Label>Home</NativeTabs.Trigger.Label>
+          <NativeTabs.Trigger.Icon sf="house.fill" md="home" />
+        </NativeTabs.Trigger>
 
-      <View style={{ flex: 1, backgroundColor: colors.background }}>
-        <Tabs
-          screenOptions={{
-            headerShown: false,
+        <NativeTabs.Trigger name="search">
+          <NativeTabs.Trigger.Label>Search</NativeTabs.Trigger.Label>
+          <NativeTabs.Trigger.Icon sf="magnifyingglass" md="search" />
+        </NativeTabs.Trigger>
 
-            // Hide bottom tab bar if showing sidebar
-            tabBarStyle: showSidebar
-              ? { display: "none" }
-              : {
-                  backgroundColor: colors.tabBar,
-                  borderTopColor: colors.tabBarBorder,
-                  elevation: 0,
-                  height: 60,
-                  width: "100%",
-                  alignSelf: "stretch",
-                  justifyContent: "center",
-                  alignItems: "center",
-                },
+        <NativeTabs.Trigger name="create" disabled>
+          <NativeTabs.Trigger.Label>Create</NativeTabs.Trigger.Label>
+          <NativeTabs.Trigger.Icon sf="plus.circle.fill" md="add_circle" />
+        </NativeTabs.Trigger>
 
-            tabBarActiveTintColor: colors.tabBarActive,
-            tabBarInactiveTintColor: colors.tabBarInactive,
-            tabBarItemStyle: {
-              flex: 1, // ← each item takes equal share of full width
-              minWidth: 0,
-            },
-          }}
-        >
-          <Tabs.Screen
-            name="index"
-            options={{
-              title: "Home",
-              tabBarIcon: ({ color, focused }) => (
-                <Home size={24} color={color} strokeWidth={focused ? 2.5 : 2} />
-              ),
-            }}
-          />
-          <Tabs.Screen
-            name="search"
-            options={{
-              title: "Search",
-              tabBarIcon: ({ color, focused }) => (
-                <Search
-                  size={24}
-                  color={color}
-                  strokeWidth={focused ? 2.5 : 2}
-                />
-              ),
-            }}
-          />
-          <Tabs.Screen
-            name="create"
-            options={{
-              title: "Create",
-              tabBarIcon: ({ color, focused }) => (
-                <PlusCircle
-                  size={24}
-                  color={color}
-                  strokeWidth={focused ? 2.5 : 2}
-                />
-              ),
+        <NativeTabs.Trigger name="notifications">
+          <NativeTabs.Trigger.Label>Notifications</NativeTabs.Trigger.Label>
+          <NativeTabs.Trigger.Icon sf="bell.fill" md="notifications" />
+          <NativeTabs.Trigger.Badge>
+            {unreadCount.toString()}
+          </NativeTabs.Trigger.Badge>
+        </NativeTabs.Trigger>
 
-              animation: "fade",
-            }}
-            listeners={{
-              tabPress: (e) => {
-                // Prevent the default tab navigation
-                e.preventDefault();
-                // Push the create menu as a root-level transparent modal
-                // so the actual current tab content stays visible behind it
-                const { router } = require("expo-router");
-                router.push("/create-menu");
-              },
-            }}
-          />
-          <Tabs.Screen
-            name="notifications"
-            options={{
-              title: "Notifications",
-              tabBarIcon: ({ color, focused }) => (
-                <Bell size={24} color={color} strokeWidth={focused ? 2.5 : 2} />
-              ),
-            }}
-          />
-          <Tabs.Screen
-            name="profile"
-            options={{
-              title: "Profile",
-              tabBarIcon: ({ color, focused }) => (
-                <User size={24} color={color} strokeWidth={focused ? 2.5 : 2} />
-              ),
-            }}
-          />
-        </Tabs>
-      </View>
+        <NativeTabs.Trigger name="profile">
+          <NativeTabs.Trigger.Label>Profile</NativeTabs.Trigger.Label>
+          <NativeTabs.Trigger.Icon sf="person.fill" md="person" />
+        </NativeTabs.Trigger>
+      </NativeTabs>
+      {/* Transparent overlay exactly covering the Create tab button */}
+      <Pressable
+        onPress={() => router.push("/create-menu")}
+        style={{
+          position: "absolute",
+          bottom: 0,
+          left: tabWidth * CREATE_TAB_INDEX,
+          width: tabWidth - 16, // substract 16, i don't know its just debug
+          height: TAB_BAR_HEIGHT,
+          // backgroundColor: "rgba(255,0,0,1)", // for debug
+        }}
+        accessibilityLabel="Create"
+        accessibilityRole="button"
+      />
     </View>
   );
 }

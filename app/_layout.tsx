@@ -155,7 +155,10 @@ function RootLayoutInner() {
           name="create-menu"
           options={{
             presentation: "transparentModal",
-            animation: "fade",
+            animation: Platform.select({
+              web: "fade",
+              default: "slide_from_bottom",
+            }),
             contentStyle: { backgroundColor: "transparent" },
           }}
         />
