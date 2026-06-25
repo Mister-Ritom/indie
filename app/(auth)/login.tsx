@@ -62,6 +62,7 @@ export default function LoginScreen() {
       } else {
         const redirectUrl = AuthSession.makeRedirectUri({
           scheme: "me.ritom.indie",
+          path: "auth/callback",
         });
 
         const { data, error: oauthError } = await supabase.auth.signInWithOAuth(
