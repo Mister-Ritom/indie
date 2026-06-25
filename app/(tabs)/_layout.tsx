@@ -53,11 +53,14 @@ export default function TabLayout() {
         onPress={() => router.push("/create-menu")}
         style={{
           position: "absolute",
-          bottom: 0,
+          bottom: Platform.select({ ios: 0, android: 32 }),
           left: tabWidth * CREATE_TAB_INDEX,
-          width: tabWidth - 16, // substract 16, i don't know its just debug
+          width: Platform.select({
+            ios: tabWidth - 16,
+            android: tabWidth,
+          }),
           height: TAB_BAR_HEIGHT,
-          // backgroundColor: "rgba(255,0,0,1)", // for debug
+          // backgroundColor: "rgba(255,0,0,0.6)", // for debug
         }}
         accessibilityLabel="Create"
         accessibilityRole="button"
