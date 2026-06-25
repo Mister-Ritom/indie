@@ -326,6 +326,22 @@ export interface Database {
           updated_at?: string;
         };
       };
+      // ── added: account deletion scheduling ──────────────────────────────────
+      pending_deletions: {
+        Row: {
+          user_id: string;
+          scheduled_at: string;
+          requested_at: string;
+        };
+        Insert: {
+          user_id: string;
+          scheduled_at?: string;
+          requested_at?: string;
+        };
+        Update: {
+          scheduled_at?: string;
+        };
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -359,6 +375,19 @@ export interface Database {
         };
         Returns: { id: string; score: number }[];
       };
+      // ── added: account deletion RPCs ────────────────────────────────────────
+      request_account_deletion: {
+        Args: Record<string, never>;
+        Returns: { scheduled_at: string; message: string };
+      };
+      cancel_account_deletion: {
+        Args: Record<string, never>;
+        Returns: { cancelled: boolean; message: string };
+      };
+      process_pending_deletions: {
+        Args: Record<string, never>;
+        Returns: { deleted_count: number; processed_at: string };
+      };
     };
     Enums: Record<string, never>;
   };
@@ -379,6 +408,9 @@ export type Save = Database["public"]["Tables"]["saves"]["Row"];
 export type PinView = Database["public"]["Tables"]["pin_views"]["Row"];
 export type UserInterestScore =
   Database["public"]["Tables"]["user_interest_scores"]["Row"];
+// ── added ──
+export type PendingDeletion =
+  Database["public"]["Tables"]["pending_deletions"]["Row"];
 
 export interface FeedPin extends Pin {
   profile: Pick<Profile, "id" | "username" | "avatar_url" | "full_name">;

@@ -208,6 +208,17 @@ function RootLayoutInner() {
           }}
         />
         <Stack.Screen
+          name="legal/delete-account"
+          options={{
+            presentation: "card",
+            headerShown: true,
+            title: "Delete Account",
+            headerStyle: { backgroundColor: colors.background },
+            headerTintColor: colors.text,
+            headerShadowVisible: false,
+          }}
+        />
+        <Stack.Screen
           name="create/pin"
           options={{ presentation: "fullScreenModal" }}
         />
