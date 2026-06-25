@@ -59,7 +59,10 @@ export default function TabLayout() {
             ios: tabWidth - 16,
             android: tabWidth,
           }),
-          height: TAB_BAR_HEIGHT,
+          height: Platform.select({
+            ios: TAB_BAR_HEIGHT,
+            android: TAB_BAR_HEIGHT + 8,
+          }),
           // backgroundColor: "rgba(255,0,0,0.6)", // for debug
         }}
         accessibilityLabel="Create"
