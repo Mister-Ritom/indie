@@ -1,17 +1,28 @@
 import { useEffect } from "react";
-import { View } from "react-native";
-import { Tabs } from "expo-router";
+import { View, Pressable } from "react-native";
+import { Tabs, router, usePathname } from "expo-router";
 import { Home, Search, PlusCircle, Bell, User } from "lucide-react-native";
 import { useTheme } from "@/hooks/useTheme";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 import { WebSidebar } from "@/components/layout/WebSidebar";
-import { router } from "expo-router";
 import { useNotifications } from "@/hooks/useNotifications";
+import { useSidebarStore } from "@/stores/sidebarStore";
 
 export default function TabLayout() {
   const { colors } = useTheme();
   const { showSidebar } = useBreakpoint();
   const { unreadCount } = useNotifications();
+  const pathname = usePathname();
+  const { activePanel, closePanel } = useSidebarStore();
+
+  // Close active side panel when the route/pathname changes, unless it is the search panel on search page
+  useEffect(() => {
+    const isSearchRoute = pathname === "/search" || pathname === "/(tabs)/search";
+    if (activePanel === "search" && isSearchRoute) {
+      return;
+    }
+    closePanel();
+  }, [pathname]);
 
   useEffect(() => {
     router.prefetch("/create-menu");
@@ -43,7 +54,29 @@ export default function TabLayout() {
         }}
       >
         <WebSidebar />
-        <View style={{ flex: 1, backgroundColor: colors.background }}>
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: colors.background,
+            position: "relative",
+          }}
+        >
+          {/* Backdrop overlay to close the sidebar panel when clicking outside */}
+          {activePanel && (
+            <Pressable
+              onPress={closePanel}
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundColor: "rgba(0,0,0,0.02)",
+                zIndex: 99999,
+              }}
+            />
+          )}
+
           <Tabs
             screenOptions={{
               headerShown: false,

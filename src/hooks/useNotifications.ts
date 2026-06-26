@@ -1,13 +1,19 @@
-import { useState, useEffect, useCallback } from "react";
+import { useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { useAuthStore } from "@/stores/authStore";
+import { useNotificationStore } from "@/stores/notificationStore";
 import type { Notification } from "@/types/database";
 
 export function useNotifications() {
   const { user } = useAuthStore();
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [isLoading, setIsLoading] = useState(true);
+  const {
+    notifications,
+    unreadCount,
+    isLoading,
+    setNotifications,
+    setUnreadCount,
+    setIsLoading,
+  } = useNotificationStore();
 
   const fetchNotifications = useCallback(async () => {
     if (!user) return;
@@ -54,17 +60,19 @@ export function useNotifications() {
 
     setNotifications(formattedNotifications);
     setUnreadCount(formattedNotifications.filter((n) => !n.read).length);
-  }, [user]);
+  }, [user, setNotifications, setUnreadCount]);
 
   const markAsRead = useCallback(
     async (notificationId: string) => {
       if (!user) return;
 
       // Optimistic update
-      setNotifications((prev) =>
-        prev.map((n) => (n.id === notificationId ? { ...n, read: true } : n)),
+      setNotifications(
+        notifications.map((n) =>
+          n.id === notificationId ? { ...n, read: true } : n,
+        ),
       );
-      setUnreadCount((prev) => Math.max(0, prev - 1));
+      setUnreadCount(Math.max(0, unreadCount - 1));
 
       await supabase
         .from("notifications")
@@ -72,7 +80,7 @@ export function useNotifications() {
         .eq("id", notificationId)
         .eq("user_id", user.id);
     },
-    [user],
+    [user, notifications, unreadCount, setNotifications, setUnreadCount],
   );
 
   useEffect(() => {
@@ -106,7 +114,7 @@ export function useNotifications() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, fetchNotifications]);
+  }, [user, fetchNotifications, setIsLoading]);
 
   return {
     notifications,

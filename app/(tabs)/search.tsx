@@ -12,15 +12,16 @@ import { UserSearchCard } from '@/components/profile/UserSearchCard';
 import { supabase } from '@/lib/supabase/client';
 import { columnWidth } from '@/utils/imageVariants';
 import type { FeedPin, Profile } from '@/types/database';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 
 export default function SearchScreen() {
   const { colors, spacing, typography, radius } = useTheme();
   const { width } = useWindowDimensions();
   const { showSidebar, masonryCols, grid } = useBreakpoint();
+  const { q } = useLocalSearchParams<{ q?: string }>();
 
-  const [query, setQuery] = useState('');
-  const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [query, setQuery] = useState(q || '');
+  const [debouncedQuery, setDebouncedQuery] = useState(q || '');
   const [pinResults, setPinResults] = useState<FeedPin[]>([]);
   const [profileResults, setProfileResults] = useState<Profile[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -28,6 +29,13 @@ export default function SearchScreen() {
 
   const contentWidth = showSidebar ? width - grid.sidebarWidth : width;
   const colW = columnWidth(contentWidth, masonryCols, grid.gap, grid.contentPadding);
+
+  // Sync URL query state
+  useEffect(() => {
+    if (q !== undefined) {
+      setQuery(q);
+    }
+  }, [q]);
 
   // Debounce search
   useEffect(() => {
@@ -104,44 +112,46 @@ export default function SearchScreen() {
       style={{ flex: 1, backgroundColor: colors.background }}
       edges={showSidebar ? ['top', 'bottom'] : ['top']}
     >
-      <View style={{ padding: spacing.md }}>
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            backgroundColor: colors.inputBg,
-            borderRadius: radius.pill,
-            paddingHorizontal: spacing.md,
-            height: 48,
-          }}
-        >
-          <SearchIcon size={20} color={colors.iconMuted} />
-          <TextInput
-            value={query}
-            onChangeText={setQuery}
-            placeholder="Search for ideas or people"
-            placeholderTextColor={colors.placeholder}
+      {!showSidebar && (
+        <View style={{ padding: spacing.md }}>
+          <View
             style={{
-              flex: 1,
-              marginLeft: spacing.sm,
-              fontFamily: typography.families.body,
-              fontSize: typography.scale.bodyLarge,
-              color: colors.text,
-              outlineStyle: 'none',
-            } as any}
-            autoFocus={false}
-          />
-          {query.length > 0 ? (
-            <TouchableOpacity onPress={() => setQuery('')}>
-              <X size={20} color={colors.icon} />
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity onPress={() => {}}>
-              <Camera size={20} color={colors.iconMuted} />
-            </TouchableOpacity>
-          )}
+              flexDirection: 'row',
+              alignItems: 'center',
+              backgroundColor: colors.inputBg,
+              borderRadius: radius.pill,
+              paddingHorizontal: spacing.md,
+              height: 48,
+            }}
+          >
+            <SearchIcon size={20} color={colors.iconMuted} />
+            <TextInput
+              value={query}
+              onChangeText={setQuery}
+              placeholder="Search for ideas or people"
+              placeholderTextColor={colors.placeholder}
+              style={{
+                flex: 1,
+                marginLeft: spacing.sm,
+                fontFamily: typography.families.body,
+                fontSize: typography.scale.bodyLarge,
+                color: colors.text,
+                outlineStyle: 'none',
+              } as any}
+              autoFocus={false}
+            />
+            {query.length > 0 ? (
+              <TouchableOpacity onPress={() => setQuery('')}>
+                <X size={20} color={colors.icon} />
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity onPress={() => {}}>
+                <Camera size={20} color={colors.iconMuted} />
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
-      </View>
+      )}
 
       <View style={{ flex: 1 }}>
         {!debouncedQuery ? (

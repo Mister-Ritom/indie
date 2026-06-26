@@ -1,15 +1,9 @@
 import React from "react";
-import {
-  View,
-  Image,
-  StyleSheet,
-  useColorScheme,
-  Platform,
-} from "react-native";
+import { View, Image, StyleSheet, Platform } from "react-native";
+import { useTheme } from "@/hooks/useTheme";
 
 const LogoCard = ({ width = 200, height = 200 }) => {
-  const scheme = useColorScheme();
-  const isDark = scheme === "dark";
+  const { isDark } = useTheme();
 
   const cardBg = isDark ? "#0F1729" : "#FFFFFF";
   const glowColor = isDark ? "rgba(124,58,237,0.18)" : "rgba(148,163,184,0.12)";
