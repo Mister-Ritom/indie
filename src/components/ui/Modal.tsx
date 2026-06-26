@@ -105,10 +105,9 @@ export function Modal({ visible, onClose, title, children, height = 'auto' }: Mo
             style={{
               flexDirection: 'row',
               alignItems: 'center',
-              justifyContent: 'space-between',
-              paddingHorizontal: spacing.md,
-              paddingTop: spacing.md,
-              paddingBottom: spacing.sm,
+              paddingHorizontal: spacing.lg,
+              paddingTop: spacing.lg,
+              paddingBottom: spacing.md,
             }}
           >
             {title && (
@@ -117,12 +116,17 @@ export function Modal({ visible, onClose, title, children, height = 'auto' }: Mo
                   fontFamily: typography.families.heading,
                   fontSize: typography.scale.h3,
                   color: colors.text,
+                  flex: 1,
                 }}
               >
                 {title}
               </Text>
             )}
-            <TouchableOpacity onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <TouchableOpacity
+              onPress={onClose}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              style={{ marginLeft: 'auto' }}
+            >
               <X size={22} color={colors.icon} />
             </TouchableOpacity>
           </View>

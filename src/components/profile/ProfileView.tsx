@@ -9,11 +9,13 @@ import {
 } from "react-native";
 import { Image } from "expo-image";
 import { router } from "expo-router";
-import { Settings, Share as ShareIcon } from "lucide-react-native";
+import { Settings, Share as ShareIcon, MoreHorizontal, Ban, ShieldOff, Flag } from "lucide-react-native";
 import { useTheme } from "@/hooks/useTheme";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { MasonryGrid } from "@/components/pins/MasonryGrid";
+import { OptionsModal } from "@/components/ui/OptionsModal";
+import { ReportModal } from "@/components/ui/ReportModal";
 import { formatCount } from "@/utils/formatters";
 import { supabase } from "@/lib/supabase/client";
 import { useAuthStore } from "@/stores/authStore";
@@ -43,6 +45,9 @@ export function ProfileView({ userId, isCurrentUser }: ProfileViewProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [recentSaves, setRecentSaves] = useState<string[]>([]);
+  const [isBlocked, setIsBlocked] = useState(false);
+  const [showOptions, setShowOptions] = useState(false);
+  const [showReport, setShowReport] = useState(false);
 
   const fetchProfile = useCallback(
     async (background = false) => {
@@ -96,6 +101,17 @@ export function ProfileView({ userId, isCurrentUser }: ProfileViewProps) {
           boards_count: boardsCount.count ?? 0,
           is_following: !!isFollowing.data,
         });
+
+        // Fetch block status
+        if (user && !isCurrentUser) {
+          const { data: blockData } = await supabase
+            .from('user_blocks')
+            .select('blocked_id')
+            .eq('blocker_id', user.id)
+            .eq('blocked_id', userId)
+            .single();
+          setIsBlocked(!!blockData);
+        }
       }
       if (!background) setIsLoading(false);
     },
@@ -201,6 +217,23 @@ export function ProfileView({ userId, isCurrentUser }: ProfileViewProps) {
       });
     }
   };
+
+  const handleBlock = useCallback(async () => {
+    if (!user) return;
+    if (isBlocked) {
+      await supabase
+        .from('user_blocks')
+        .delete()
+        .eq('blocker_id', user.id)
+        .eq('blocked_id', userId);
+      setIsBlocked(false);
+    } else {
+      await supabase
+        .from('user_blocks')
+        .insert({ blocker_id: user.id, blocked_id: userId });
+      setIsBlocked(true);
+    }
+  }, [user, isBlocked, userId]);
 
   const authProfile = useAuthStore((state) => state.profile);
 
@@ -358,204 +391,307 @@ export function ProfileView({ userId, isCurrentUser }: ProfileViewProps) {
               </TouchableOpacity>
             </>
           ) : (
-            <Button
-              label={profile.is_following ? "Following" : "Follow"}
-              variant={profile.is_following ? "secondary" : "primary"}
-              onPress={handleFollow}
-            />
+            <>
+              {isBlocked ? (
+                <Button
+                  label="Unblock"
+                  variant="secondary"
+                  onPress={handleBlock}
+                />
+              ) : (
+                <Button
+                  label={profile.is_following ? "Following" : "Follow"}
+                  variant={profile.is_following ? "secondary" : "primary"}
+                  onPress={handleFollow}
+                />
+              )}
+              {/* Three-dot options */}
+              <TouchableOpacity
+                onPress={() => setShowOptions(true)}
+                style={{
+                  padding: 12,
+                  backgroundColor: colors.surface,
+                  borderRadius: radius.pill,
+                }}
+              >
+                <MoreHorizontal size={22} color={colors.icon} />
+              </TouchableOpacity>
+            </>
           )}
         </View>
       </View>
 
-      {/* Tabs */}
-      <View
-        style={{
-          flexDirection: "row",
-          justifyContent: "center",
-          gap: spacing.xl,
-          marginBottom: spacing.lg,
-        }}
-      >
-        <TouchableOpacity
-          onPress={() => setActiveTab("created")}
+      {/* Tabs + Content — hidden when blocked */}
+      {isBlocked ? (
+        <View
           style={{
-            paddingBottom: spacing.sm,
-            borderBottomWidth: 3,
-            borderBottomColor:
-              activeTab === "created" ? colors.primary : "transparent",
+            flex: 1,
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: spacing.xl,
+            marginTop: spacing.xxl,
           }}
         >
-          <Text
-            style={{
-              fontFamily:
-                activeTab === "created"
-                  ? typography.families.heading
-                  : typography.families.bodyMedium,
-              fontSize: typography.scale.bodyLarge,
-              color:
-                activeTab === "created" ? colors.text : colors.textSecondary,
-            }}
-          >
-            {"Created"}
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          onPress={() => setActiveTab("saved")}
-          style={{
-            paddingBottom: spacing.sm,
-            borderBottomWidth: 3,
-            borderBottomColor:
-              activeTab === "saved" ? colors.primary : "transparent",
-          }}
-        >
-          <Text
-            style={{
-              fontFamily:
-                activeTab === "saved"
-                  ? typography.families.heading
-                  : typography.families.bodyMedium,
-              fontSize: typography.scale.bodyLarge,
-              color: activeTab === "saved" ? colors.text : colors.textSecondary,
-            }}
-          >
-            {"Saved"}
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Content */}
-      <View style={{ flex: 1 }}>
-        {activeTab === "created" ? (
-          <MasonryGrid
-            pins={pins}
-            isLoading={isLoading}
-            emptyMessage="No pins created yet."
-          />
-        ) : (
           <View
             style={{
-              paddingHorizontal: spacing.md,
-              flexDirection: "row",
-              flexWrap: "wrap",
-              gap: spacing.md,
+              width: 64,
+              height: 64,
+              borderRadius: 32,
+              backgroundColor: colors.surface,
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: spacing.lg,
             }}
           >
-            {/* All / Quick Saves Card */}
-            {(isCurrentUser || !displayProfile.all_saves_private) && (
-              <TouchableOpacity
-                onPress={() => router.push(`/saved-pins?userId=${userId}`)}
+            <Ban size={28} color={colors.textSecondary} />
+          </View>
+          <Text
+            style={{
+              fontFamily: typography.families.headingMedium,
+              fontSize: typography.scale.bodyLarge,
+              color: colors.text,
+              textAlign: 'center',
+              marginBottom: spacing.sm,
+            }}
+          >
+            You've blocked @{displayProfile.username}
+          </Text>
+          <Text
+            style={{
+              fontFamily: typography.families.body,
+              fontSize: typography.scale.body,
+              color: colors.textSecondary,
+              textAlign: 'center',
+              maxWidth: 280,
+              marginBottom: spacing.xl,
+            }}
+          >
+            Unblock to see their pins and boards.
+          </Text>
+          <Button label="Unblock" variant="secondary" onPress={handleBlock} />
+        </View>
+      ) : (
+        <>
+          {/* Tabs */}
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "center",
+              gap: spacing.xl,
+              marginBottom: spacing.lg,
+            }}
+          >
+            <TouchableOpacity
+              onPress={() => setActiveTab("created")}
+              style={{
+                paddingBottom: spacing.sm,
+                borderBottomWidth: 3,
+                borderBottomColor:
+                  activeTab === "created" ? colors.primary : "transparent",
+              }}
+            >
+              <Text
                 style={{
-                  width: "47%",
-                  aspectRatio: 1,
-                  backgroundColor: colors.surface,
-                  borderRadius: radius.lg,
-                  overflow: "hidden",
+                  fontFamily:
+                    activeTab === "created"
+                      ? typography.families.heading
+                      : typography.families.bodyMedium,
+                  fontSize: typography.scale.bodyLarge,
+                  color:
+                    activeTab === "created" ? colors.text : colors.textSecondary,
                 }}
               >
-                {/* Cover mosaic */}
-                {recentSaves.length > 0 && (
-                  <View
+                {"Created"}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => setActiveTab("saved")}
+              style={{
+                paddingBottom: spacing.sm,
+                borderBottomWidth: 3,
+                borderBottomColor:
+                  activeTab === "saved" ? colors.primary : "transparent",
+              }}
+            >
+              <Text
+                style={{
+                  fontFamily:
+                    activeTab === "saved"
+                      ? typography.families.heading
+                      : typography.families.bodyMedium,
+                  fontSize: typography.scale.bodyLarge,
+                  color: activeTab === "saved" ? colors.text : colors.textSecondary,
+                }}
+              >
+                {"Saved"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Content */}
+          <View style={{ flex: 1 }}>
+            {activeTab === "created" ? (
+              <MasonryGrid
+                pins={pins}
+                isLoading={isLoading}
+                emptyMessage="No pins created yet."
+              />
+            ) : (
+              <View
+                style={{
+                  paddingHorizontal: spacing.md,
+                  flexDirection: "row",
+                  flexWrap: "wrap",
+                  gap: spacing.md,
+                }}
+              >
+                {/* All / Quick Saves Card */}
+                {(isCurrentUser || !displayProfile.all_saves_private) && (
+                  <TouchableOpacity
+                    onPress={() => router.push(`/saved-pins?userId=${userId}`)}
                     style={{
-                      ...absoluteFill,
-                      flexDirection: "row",
-                      flexWrap: "wrap",
+                      width: "47%",
+                      aspectRatio: 1,
+                      backgroundColor: colors.surface,
+                      borderRadius: radius.lg,
+                      overflow: "hidden",
                     }}
                   >
-                    {recentSaves.map((url, i) => (
+                    {/* Cover mosaic */}
+                    {recentSaves.length > 0 && (
                       <View
-                        key={i}
                         style={{
-                          width: recentSaves.length === 1 ? "100%" : "50%",
-                          height: recentSaves.length <= 2 ? "100%" : "50%",
+                          ...absoluteFill,
+                          flexDirection: "row",
+                          flexWrap: "wrap",
                         }}
                       >
-                        <Image
-                          source={{ uri: url }}
-                          contentFit="cover"
-                          style={{ width: "100%", height: "100%" }}
+                        {recentSaves.map((url, i) => (
+                          <View
+                            key={i}
+                            style={{
+                              width: recentSaves.length === 1 ? "100%" : "50%",
+                              height: recentSaves.length <= 2 ? "100%" : "50%",
+                            }}
+                          >
+                            <Image
+                              source={{ uri: url }}
+                              contentFit="cover"
+                              style={{ width: "100%", height: "100%" }}
+                            />
+                          </View>
+                        ))}
+                        {/* Scrim */}
+                        <View
+                          style={{
+                            ...absoluteFill,
+                            backgroundColor: "rgba(0,0,0,0.3)",
+                          }}
                         />
                       </View>
-                    ))}
-                    {/* Scrim */}
+                    )}
+
+                    {/* Label */}
                     <View
                       style={{
                         ...absoluteFill,
-                        backgroundColor: "rgba(0,0,0,0.3)",
+                        padding: spacing.md,
+                        justifyContent: "flex-end",
+                        zIndex: 10,
                       }}
-                    />
-                  </View>
+                      pointerEvents="none"
+                    >
+                      <Text
+                        style={{
+                          fontFamily: typography.families.headingMedium,
+                          fontSize: typography.scale.bodyLarge,
+                          color: recentSaves.length > 0 ? "#fff" : colors.text,
+                        }}
+                      >
+                        {"Quick Saves"}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
                 )}
 
-                {/* Label */}
-                <View
-                  style={{
-                    ...absoluteFill,
-                    padding: spacing.md,
-                    justifyContent: "flex-end",
-                    zIndex: 10,
-                  }}
-                  pointerEvents="none"
-                >
-                  <Text
+                {/* Board cards */}
+                {boards.map((board) => (
+                  <TouchableOpacity
+                    key={board.id}
+                    onPress={() => router.push(`/board/${board.id}`)}
                     style={{
-                      fontFamily: typography.families.headingMedium,
-                      fontSize: typography.scale.bodyLarge,
-                      color: recentSaves.length > 0 ? "#fff" : colors.text,
+                      width: "47%",
+                      aspectRatio: 1,
+                      backgroundColor: colors.surface,
+                      borderRadius: radius.lg,
+                      overflow: "hidden",
                     }}
                   >
-                    {"Quick Saves"}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            )}
-
-            {/* Board cards */}
-            {boards.map((board) => (
-              <TouchableOpacity
-                key={board.id}
-                onPress={() => router.push(`/board/${board.id}`)}
-                style={{
-                  width: "47%",
-                  aspectRatio: 1,
-                  backgroundColor: colors.surface,
-                  borderRadius: radius.lg,
-                  overflow: "hidden",
-                }}
-              >
-                <View
-                  style={{
-                    flex: 1,
-                    padding: spacing.md,
-                    justifyContent: "flex-end",
-                  }}
-                >
-                  <Text
-                    style={{
-                      fontFamily: typography.families.headingMedium,
-                      fontSize: typography.scale.bodyLarge,
-                      color: colors.text,
-                    }}
-                  >
-                    {board.name}
-                  </Text>
-                  {board.is_private ? (
-                    <Text
+                    <View
                       style={{
-                        fontFamily: typography.families.body,
-                        fontSize: typography.scale.caption,
-                        color: colors.textSecondary,
+                        flex: 1,
+                        padding: spacing.md,
+                        justifyContent: "flex-end",
                       }}
                     >
-                      {"Private"}
-                    </Text>
-                  ) : null}
-                </View>
-              </TouchableOpacity>
-            ))}
+                      <Text
+                        style={{
+                          fontFamily: typography.families.headingMedium,
+                          fontSize: typography.scale.bodyLarge,
+                          color: colors.text,
+                        }}
+                      >
+                        {board.name}
+                      </Text>
+                      {board.is_private ? (
+                        <Text
+                          style={{
+                            fontFamily: typography.families.body,
+                            fontSize: typography.scale.caption,
+                            color: colors.textSecondary,
+                          }}
+                        >
+                          {"Private"}
+                        </Text>
+                      ) : null}
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
           </View>
-        )}
-      </View>
+        </>
+      )}
+
+      {/* Options Modal */}
+      <OptionsModal
+        visible={showOptions}
+        onClose={() => setShowOptions(false)}
+        items={[
+          {
+            label: 'Report Profile',
+            icon: <Flag size={20} color={colors.icon} />,
+            onPress: () => setShowReport(true),
+          },
+          {
+            label: isBlocked ? 'Unblock User' : 'Block User',
+            icon: isBlocked
+              ? <ShieldOff size={20} color="#DC2626" />
+              : <Ban size={20} color="#DC2626" />,
+            onPress: handleBlock,
+            destructive: true,
+          },
+        ]}
+      />
+
+      {/* Report Modal */}
+      <ReportModal
+        visible={showReport}
+        onClose={() => setShowReport(false)}
+        type="user"
+        targetId={userId}
+      />
     </ScrollView>
   );
 }

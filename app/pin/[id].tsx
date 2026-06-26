@@ -4,7 +4,7 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { ArrowLeft, MoreHorizontal, Heart, MessageCircle, Share as ShareIcon, ExternalLink } from 'lucide-react-native';
+import { ArrowLeft, MoreHorizontal, Heart, Share as ShareIcon, ExternalLink, Flag, Ban } from 'lucide-react-native';
 import * as WebBrowser from 'expo-web-browser';
 import { useTheme } from '@/hooks/useTheme';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
@@ -12,6 +12,8 @@ import { Button } from '@/components/ui/Button';
 import { Avatar } from '@/components/ui/Avatar';
 import { MasonryGrid } from '@/components/pins/MasonryGrid';
 import { SaveBoardPicker } from '@/components/pins/SaveBoardPicker';
+import { OptionsModal } from '@/components/ui/OptionsModal';
+import { ReportModal } from '@/components/ui/ReportModal';
 import { supabase } from '@/lib/supabase/client';
 import { useAuthStore } from '@/stores/authStore';
 import { pickVariant } from '@/utils/imageVariants';
@@ -33,6 +35,8 @@ export default function PinDetailScreen() {
   const [showSavePicker, setShowSavePicker] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
+  const [showOptions, setShowOptions] = useState(false);
+  const [showReport, setShowReport] = useState(false);
   const hasViewedRef = useRef(false);
 
   useEffect(() => {
@@ -71,7 +75,7 @@ export default function PinDetailScreen() {
         // Log view
         if (user && !hasViewedRef.current) {
           hasViewedRef.current = true;
-          supabase.from('pin_views').insert({ user_id: user.id, pin_id: id }).then();
+          supabase.from('pin_views').upsert({ user_id: user.id, pin_id: id }).then();
         }
 
         // Check follow status
@@ -202,10 +206,15 @@ export default function PinDetailScreen() {
             <ArrowLeft size={24} color={colors.icon} />
           </TouchableOpacity>
           <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-            <TouchableOpacity onPress={() => Share.share({ url: `https://me.ritom.indie/pin/${pin.id}` })} style={{ padding: 12, backgroundColor: colors.surface, borderRadius: radius.pill }}>
-              <ShareIcon size={20} color={colors.icon} />
-            </TouchableOpacity>
             <Button label="Save" onPress={() => setShowSavePicker(true)} size="sm" />
+            {user && user.id !== pin.user_id && (
+              <TouchableOpacity
+                onPress={() => setShowOptions(true)}
+                style={{ padding: 10, backgroundColor: colors.surface, borderRadius: radius.pill }}
+              >
+                <MoreHorizontal size={20} color={colors.icon} />
+              </TouchableOpacity>
+            )}
           </View>
         </View>
 
@@ -337,7 +346,42 @@ export default function PinDetailScreen() {
 
         </ScrollView>
       </KeyboardAvoidingView>
+
       <SaveBoardPicker visible={showSavePicker} pin={pin} onClose={() => setShowSavePicker(false)} />
+
+      <OptionsModal
+        visible={showOptions}
+        onClose={() => setShowOptions(false)}
+        items={[
+          {
+            label: 'Share',
+            icon: <ShareIcon size={20} color={colors.icon} />,
+            onPress: () => Share.share({ url: `https://me.ritom.indie/pin/${pin.id}`, message: 'Check out this pin on Indie!' }),
+          },
+          {
+            label: 'Report Pin',
+            icon: <Flag size={20} color={colors.icon} />,
+            onPress: () => setShowReport(true),
+          },
+          {
+            label: 'Block User',
+            icon: <Ban size={20} color="#DC2626" />,
+            onPress: async () => {
+              if (!user) return;
+              await supabase.from('user_blocks').insert({ blocker_id: user.id, blocked_id: pin.user_id });
+              router.back();
+            },
+            destructive: true,
+          },
+        ]}
+      />
+
+      <ReportModal
+        visible={showReport}
+        onClose={() => setShowReport(false)}
+        type="pin"
+        targetId={pin.id}
+      />
     </SafeAreaView>
   );
 }

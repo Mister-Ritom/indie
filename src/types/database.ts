@@ -296,6 +296,7 @@ export interface Database {
           user_id: string;
           pin_id: string;
           processed_for_scores: boolean;
+          view_count: number;
           viewed_at: string;
           updated_at: string;
         };
@@ -303,10 +304,14 @@ export interface Database {
           user_id: string;
           pin_id: string;
           processed_for_scores?: boolean;
+          view_count?: number;
           viewed_at?: string;
+          updated_at?: string;
         };
         Update: {
           processed_for_scores?: boolean;
+          view_count?: number;
+          updated_at?: string;
         };
       };
       user_interest_scores: {
