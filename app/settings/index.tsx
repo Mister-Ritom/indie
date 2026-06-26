@@ -42,6 +42,7 @@ type SectionId =
   | "language"
   | "terms"
   | "privacy-policy"
+  | "child-safety"
   | "help"
   | "contact"
   | "logout"
@@ -219,6 +220,20 @@ export default function SettingsScreen() {
               size={18}
               color={
                 activeSection === "privacy-policy" && isDesktop
+                  ? colors.primary
+                  : colors.icon
+              }
+            />
+          ),
+        },
+        {
+          id: "child-safety",
+          label: "Child safety standards",
+          icon: (
+            <Shield
+              size={18}
+              color={
+                activeSection === "child-safety" && isDesktop
                   ? colors.primary
                   : colors.icon
               }
@@ -697,6 +712,20 @@ export default function SettingsScreen() {
           </View>
         );
 
+      case "child-safety":
+        return (
+          <View>
+            {isDesktop && renderSectionHeading("Child safety standards")}
+            {renderCard(
+              renderRow(
+                <Shield size={20} color={colors.icon} />,
+                "Child safety standards policy",
+                () => router.push("/legal/child-safety"),
+              ),
+            )}
+          </View>
+        );
+
       case "help":
         return (
           <View>
@@ -816,7 +845,19 @@ export default function SettingsScreen() {
                     item.icon,
                     item.label,
                     item.action ??
-                      (() => router.push(`/settings/${item.id}` as any)),
+                      (() => {
+                        if (item.id === "terms") {
+                          router.push("/legal/terms");
+                        } else if (item.id === "privacy-policy") {
+                          router.push("/legal/privacy");
+                        } else if (item.id === "child-safety") {
+                          router.push("/legal/child-safety");
+                        } else if (item.id === "privacy") {
+                          router.push("/settings/privacy-settings");
+                        } else {
+                          router.push(`/settings/${item.id}` as any);
+                        }
+                      }),
                     undefined,
                     item.danger,
                   ),

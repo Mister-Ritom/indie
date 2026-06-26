@@ -41,7 +41,7 @@ export const Input = forwardRef<TextInput, InputProps>(
 
     return (
       <View style={[{ gap: 6 }, containerStyle]}>
-        {label && (
+        {!!label && (
           <Text
             style={{
               fontFamily: typography.families.bodyMedium,
@@ -110,7 +110,7 @@ export const Input = forwardRef<TextInput, InputProps>(
             <View style={{ marginLeft: spacing.sm }}>{rightIcon}</View>
           )}
         </View>
-        {error && (
+        {!!error && (
           <Text
             style={{
               fontFamily: typography.families.body,
@@ -121,7 +121,7 @@ export const Input = forwardRef<TextInput, InputProps>(
             {error}
           </Text>
         )}
-        {hint && !error && (
+        {!!hint && !error && (
           <Text
             style={{
               fontFamily: typography.families.body,
