@@ -203,7 +203,7 @@ export default function CreatePinScreen() {
 
       if (pinError) throw pinError;
 
-      router.back();
+      router.canGoBack() ? router.back() : router.replace('/');
       setTimeout(() => {
         router.push(`/pin/${pinData.id}`);
       }, 150);
@@ -235,7 +235,7 @@ export default function CreatePinScreen() {
           }}
         >
           <TouchableOpacity
-            onPress={() => router.back()}
+            onPress={() => router.canGoBack() ? router.back() : router.replace('/')}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
             <ArrowLeft size={24} color={colors.icon} />

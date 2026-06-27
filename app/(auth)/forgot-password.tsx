@@ -118,7 +118,7 @@ export default function ForgotPasswordScreen() {
           <View style={{ width: "100%", maxWidth: 420, alignSelf: "center" }}>
             {/* Back Button - Kept relative to the card wrapper so it doesn't drift away on wide screens */}
             <TouchableOpacity
-              onPress={() => router.back()}
+              onPress={() => router.canGoBack() ? router.back() : router.replace('/')}
               style={{ position: "absolute", top: 0, left: 0 }}
             >
               <ArrowLeft size={24} color={colors.icon} />

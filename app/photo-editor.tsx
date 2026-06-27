@@ -1310,11 +1310,11 @@ export default function PhotoEditorScreen() {
 
           const dataUrl = offscreen.toDataURL("image/jpeg", 0.95);
           setEditedImage(dataUrl);
-          router.back();
+          router.canGoBack() ? router.back() : router.replace('/');
         } catch (err) {
           console.error("Web export failed:", err);
           setEditedImage(currentUri);
-          router.back();
+          router.canGoBack() ? router.back() : router.replace('/');
         }
       }, 50);
       return;
@@ -1322,7 +1322,7 @@ export default function PhotoEditorScreen() {
 
     if (!captureViewRef.current) {
       setEditedImage(currentUri);
-      router.back();
+      router.canGoBack() ? router.back() : router.replace('/');
       return;
     }
 
@@ -1334,12 +1334,12 @@ export default function PhotoEditorScreen() {
         });
         setEditedImage(uri);
         setIsExporting(false);
-        router.back();
+        router.canGoBack() ? router.back() : router.replace('/');
       } catch (err) {
         console.error("Export failed:", err);
         setEditedImage(currentUri);
         setIsExporting(false);
-        router.back();
+        router.canGoBack() ? router.back() : router.replace('/');
       }
     }, 50);
   }, [
@@ -1371,7 +1371,7 @@ export default function PhotoEditorScreen() {
   };
 
   const handleCancel = () => {
-    router.back();
+    router.canGoBack() ? router.back() : router.replace('/');
   };
 
   // ── Keyboard shortcut (web) ────────────────────────────────────────────────

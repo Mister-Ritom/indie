@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -9,11 +9,38 @@ import { useNotifications } from '@/hooks/useNotifications';
 import { Avatar } from '@/components/ui/Avatar';
 import { timeAgo } from '@/utils/formatters';
 import type { Notification } from '@/types/database';
+import { supabase } from '@/lib/supabase/client';
+import { useAuthStore } from '@/stores/authStore';
 
 export default function NotificationsScreen() {
   const { colors, spacing, typography, radius } = useTheme();
   const { showSidebar } = useBreakpoint();
   const { notifications, isLoading, refresh, markAsRead } = useNotifications();
+  const { user } = useAuthStore();
+
+  useEffect(() => {
+    const markAllRead = async () => {
+      if (!user) return;
+      const unreadCount = notifications.filter((n) => !n.read).length;
+      if (unreadCount === 0) return;
+
+      try {
+        await supabase
+          .from('notifications')
+          .update({ read: true })
+          .eq('user_id', user.id)
+          .eq('read', false);
+        
+        refresh();
+      } catch (err) {
+        console.error('Failed to mark notifications as read:', err);
+      }
+    };
+
+    if (!isLoading && notifications.length > 0) {
+      markAllRead();
+    }
+  }, [isLoading, notifications, user, refresh]);
 
   const handlePress = (notif: Notification) => {
     if (!notif.read) {

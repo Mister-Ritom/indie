@@ -202,7 +202,7 @@ export default function PinDetailScreen() {
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top', 'bottom']}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: spacing.md, backgroundColor: colors.background, zIndex: 10 }}>
-          <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={{ padding: 8, backgroundColor: colors.surface, borderRadius: radius.pill }}>
+          <TouchableOpacity onPress={() => router.canGoBack() ? router.back() : router.replace('/')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={{ padding: 8, backgroundColor: colors.surface, borderRadius: radius.pill }}>
             <ArrowLeft size={24} color={colors.icon} />
           </TouchableOpacity>
           <View style={{ flexDirection: 'row', gap: spacing.sm }}>
@@ -369,7 +369,7 @@ export default function PinDetailScreen() {
             onPress: async () => {
               if (!user) return;
               await supabase.from('user_blocks').insert({ blocker_id: user.id, blocked_id: pin.user_id });
-              router.back();
+              router.canGoBack() ? router.back() : router.replace('/');
             },
             destructive: true,
           },

@@ -65,7 +65,7 @@ export default function BoardScreen() {
     }
 
     await supabase.from('boards').delete().eq('id', board.id);
-    router.back();
+    router.canGoBack() ? router.back() : router.replace('/');
   };
 
   if (isLoading) {
@@ -90,7 +90,7 @@ export default function BoardScreen() {
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={showSidebar ? ['top', 'bottom'] : ['top']}>
       {/* Header bar */}
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: spacing.md }}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+        <TouchableOpacity onPress={() => router.canGoBack() ? router.back() : router.replace('/')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <ArrowLeft size={24} color={colors.icon} />
         </TouchableOpacity>
         

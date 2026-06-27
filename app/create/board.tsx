@@ -146,7 +146,7 @@ export default function CreateBoardScreen() {
         await savePinsToBoard(pendingBoardId, pinIds);
         setPendingBoardId(null);
         setPendingAddPins(false);
-        router.back();
+        router.canGoBack() ? router.back() : router.replace('/');
         setTimeout(() => {
           router.push(`/board/${pendingBoardId}`);
         }, 150);
@@ -154,7 +154,7 @@ export default function CreateBoardScreen() {
         // No pins chosen after prompt — just go to board
         setPendingBoardId(null);
         setPendingAddPins(false);
-        router.back();
+        router.canGoBack() ? router.back() : router.replace('/');
         setTimeout(() => {
           router.push(`/board/${pendingBoardId}`);
         }, 150);
@@ -193,7 +193,7 @@ export default function CreateBoardScreen() {
       if (selectedPinIds.length > 0) {
         // Pins already chosen — save them and navigate
         await savePinsToBoard(board.id, selectedPinIds);
-        router.back();
+        router.canGoBack() ? router.back() : router.replace('/');
         setTimeout(() => {
           router.push(`/board/${board.id}`);
         }, 150);
@@ -215,7 +215,7 @@ export default function CreateBoardScreen() {
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         {/* Header */}
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.md, paddingVertical: spacing.sm }}>
-          <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <TouchableOpacity onPress={() => router.canGoBack() ? router.back() : router.replace('/')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <X size={24} color={colors.icon} />
           </TouchableOpacity>
           <Text style={{ fontFamily: typography.families.heading, fontSize: typography.scale.bodyLarge, color: colors.text }}>
@@ -333,7 +333,7 @@ export default function CreateBoardScreen() {
             const bid = pendingBoardId;
             setPendingBoardId(null);
             setPendingAddPins(false);
-            router.back();
+            router.canGoBack() ? router.back() : router.replace('/');
             setTimeout(() => {
               router.push(`/board/${bid}`);
             }, 150);

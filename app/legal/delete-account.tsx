@@ -968,7 +968,7 @@ export default function DeleteAccountScreen() {
     }
   };
 
-  const handleDone = () => router.back();
+  const handleDone = () => router.canGoBack() ? router.back() : router.replace('/');
 
   const themeProps = { colors, typography, spacing, radius };
 

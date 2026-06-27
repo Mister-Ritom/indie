@@ -799,7 +799,7 @@ export default function SettingsScreen() {
           }}
         >
           <TouchableOpacity
-            onPress={() => router.back()}
+            onPress={() => router.canGoBack() ? router.back() : router.replace('/')}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
             <ArrowLeft size={24} color={colors.icon} />
@@ -896,7 +896,7 @@ export default function SettingsScreen() {
             showsVerticalScrollIndicator={false}
           >
             <TouchableOpacity
-              onPress={() => router.back()}
+              onPress={() => router.canGoBack() ? router.back() : router.replace('/')}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               style={{
                 flexDirection: "row",

@@ -28,7 +28,7 @@ export default function ContactSupportScreen() {
       Alert.alert(
         "Message Sent",
         "Thank you for contacting support! We will review your message and reply within 24-48 hours.",
-        [{ text: "OK", onPress: () => router.back() }]
+        [{ text: "OK", onPress: () => router.canGoBack() ? router.back() : router.replace('/') }]
       );
     }, 1500);
   };
@@ -45,7 +45,7 @@ export default function ContactSupportScreen() {
           borderBottomColor: colors.border,
         }}
       >
-        <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+        <TouchableOpacity onPress={() => router.canGoBack() ? router.back() : router.replace('/')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <ArrowLeft size={24} color={colors.icon} />
         </TouchableOpacity>
         <Text

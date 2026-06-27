@@ -74,7 +74,7 @@ export default function CreateMenuScreen() {
       }}
     >
       {/* Dimmed backdrop — tap to dismiss */}
-      <TouchableWithoutFeedback onPress={() => router.back()}>
+      <TouchableWithoutFeedback onPress={() => router.canGoBack() ? router.back() : router.replace('/')}>
         <View
           style={{
             position: "absolute", // CHANGED: Keeps backdrop filling behind the centered container
@@ -136,7 +136,7 @@ export default function CreateMenuScreen() {
           }}
         >
           <TouchableOpacity
-            onPress={() => router.back()}
+            onPress={() => router.canGoBack() ? router.back() : router.replace('/')}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
             <X size={22} color={colors.icon} />
@@ -166,7 +166,7 @@ export default function CreateMenuScreen() {
             icon={<Pin size={32} color={colors.icon} />}
             label="Pin"
             onPress={() => {
-              router.back();
+              router.canGoBack() ? router.back() : router.replace('/');
               router.push("/create/pin");
             }}
             colors={colors}
@@ -178,7 +178,7 @@ export default function CreateMenuScreen() {
             icon={<LayoutGrid size={32} color={colors.icon} />}
             label="Board"
             onPress={() => {
-              router.back();
+              router.canGoBack() ? router.back() : router.replace('/');
               router.push("/create/board");
             }}
             colors={colors}

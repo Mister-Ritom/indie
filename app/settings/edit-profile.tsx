@@ -97,7 +97,7 @@ export default function EditProfileScreen() {
       }
     } else {
       setProfile(profile ? { ...profile, ...data, avatar_url: avatarUri } : null);
-      router.back();
+      router.canGoBack() ? router.back() : router.replace('/');
     }
     setIsLoading(false);
   };
@@ -105,7 +105,7 @@ export default function EditProfileScreen() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top', 'bottom']}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border }}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+        <TouchableOpacity onPress={() => router.canGoBack() ? router.back() : router.replace('/')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <ArrowLeft size={24} color={colors.icon} />
         </TouchableOpacity>
         <Text style={{ fontFamily: typography.families.headingMedium, fontSize: typography.scale.h3, color: colors.text }}>

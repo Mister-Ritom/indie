@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef } from "react";
 import { View, Platform, Dimensions, Pressable } from "react-native";
 import { NativeTabs } from "expo-router/unstable-native-tabs";
 import { router } from "expo-router";
@@ -10,15 +10,15 @@ const CREATE_TAB_INDEX = 2;
 export default function TabLayout() {
   const screenWidth = Dimensions.get("window").width;
   const tabWidth = screenWidth / TAB_COUNT;
-  const [isNavigating, setIsNavigating] = useState(false);
+  const isNavigating = useRef(false);
 
   const handleCreatePress = () => {
-    if (isNavigating) return;
-    setIsNavigating(true);
+    if (isNavigating.current) return;
+    isNavigating.current = true;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     router.push("/create-menu");
     setTimeout(() => {
-      setIsNavigating(false);
+      isNavigating.current = false;
     }, 1000);
   };
 
@@ -51,9 +51,11 @@ export default function TabLayout() {
         <NativeTabs.Trigger name="notifications">
           <NativeTabs.Trigger.Label>Notifications</NativeTabs.Trigger.Label>
           <NativeTabs.Trigger.Icon sf="bell.fill" md="notifications" />
-          <NativeTabs.Trigger.Badge>
-            {unreadCount.toString()}
-          </NativeTabs.Trigger.Badge>
+          {unreadCount > 0 && (
+            <NativeTabs.Trigger.Badge>
+              {unreadCount.toString()}
+            </NativeTabs.Trigger.Badge>
+          )}
         </NativeTabs.Trigger>
 
         <NativeTabs.Trigger name="profile">
@@ -64,7 +66,6 @@ export default function TabLayout() {
       {/* Transparent overlay exactly covering the Create tab button */}
       <Pressable
         onPress={handleCreatePress}
-        disabled={isNavigating}
         style={{
           position: "absolute",
           bottom: Platform.select({ ios: 0, android: 32 }),
