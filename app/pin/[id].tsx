@@ -14,6 +14,7 @@ import { MasonryGrid } from '@/components/pins/MasonryGrid';
 import { SaveBoardPicker } from '@/components/pins/SaveBoardPicker';
 import { OptionsModal } from '@/components/ui/OptionsModal';
 import { ReportModal } from '@/components/ui/ReportModal';
+import { confirmAction } from '@/utils/alerts';
 import { supabase } from '@/lib/supabase/client';
 import { useAuthStore } from '@/stores/authStore';
 import { pickVariant } from '@/utils/imageVariants';
@@ -366,10 +367,17 @@ export default function PinDetailScreen() {
           {
             label: 'Block User',
             icon: <Ban size={20} color="#DC2626" />,
-            onPress: async () => {
+            onPress: () => {
               if (!user) return;
-              await supabase.from('user_blocks').insert({ blocker_id: user.id, blocked_id: pin.user_id });
-              router.canGoBack() ? router.back() : router.replace('/');
+              confirmAction(
+                'Block User',
+                `Are you sure you want to block @${pin.profile?.username}? You won't see their pins anymore.`,
+                async () => {
+                  await supabase.from('user_blocks').insert({ blocker_id: user.id, blocked_id: pin.user_id });
+                  router.back();
+                },
+                true
+              );
             },
             destructive: true,
           },

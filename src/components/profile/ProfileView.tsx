@@ -19,6 +19,7 @@ import { MasonryGrid } from "@/components/pins/MasonryGrid";
 import { OptionsModal } from "@/components/ui/OptionsModal";
 import { ReportModal } from "@/components/ui/ReportModal";
 import { formatCount } from "@/utils/formatters";
+import { confirmAction } from "@/utils/alerts";
 import { supabase } from "@/lib/supabase/client";
 import { useAuthStore } from "@/stores/authStore";
 import type { ProfileWithStats, FeedPin, Board } from "@/types/database";
@@ -253,22 +254,36 @@ export function ProfileView({ userId, isCurrentUser }: ProfileViewProps) {
     }
   };
 
-  const handleBlock = useCallback(async () => {
-    if (!user) return;
+  const handleBlock = useCallback(() => {
+    if (!user || !profile) return;
+
     if (isBlocked) {
-      await supabase
-        .from('user_blocks')
-        .delete()
-        .eq('blocker_id', user.id)
-        .eq('blocked_id', userId);
-      setIsBlocked(false);
+      confirmAction(
+        'Unblock User',
+        `Are you sure you want to unblock @${profile.username}?`,
+        async () => {
+          await supabase
+            .from('user_blocks')
+            .delete()
+            .eq('blocker_id', user.id)
+            .eq('blocked_id', userId);
+          setIsBlocked(false);
+        }
+      );
     } else {
-      await supabase
-        .from('user_blocks')
-        .insert({ blocker_id: user.id, blocked_id: userId });
-      setIsBlocked(true);
+      confirmAction(
+        'Block User',
+        `Are you sure you want to block @${profile.username}? They won't be able to see your pins.`,
+        async () => {
+          await supabase
+            .from('user_blocks')
+            .insert({ blocker_id: user.id, blocked_id: userId });
+          setIsBlocked(true);
+        },
+        true
+      );
     }
-  }, [user, isBlocked, userId]);
+  }, [user, isBlocked, userId, profile?.username]);
 
   const authProfile = useAuthStore((state) => state.profile);
 

@@ -27,6 +27,7 @@ import {
   HelpCircle,
   Mail,
   Smartphone,
+  Ban,
 } from "lucide-react-native";
 import { useTheme } from "@/hooks/useTheme";
 import { useThemeStore } from "@/stores/themeStore";
@@ -39,6 +40,7 @@ type SectionId =
   | "appearance"
   | "notifications"
   | "privacy"
+  | "blocked-users"
   | "language"
   | "terms"
   | "privacy-policy"
@@ -86,7 +88,7 @@ export default function SettingsScreen() {
               await supabase.auth.signOut();
               router.replace("/(auth)/login");
             } catch (error) {
-              console.error("Error signing out: ", error.message);
+              console.error("Error signing out: ", (error as Error).message);
             }
           },
           style: "destructive",
@@ -173,6 +175,20 @@ export default function SettingsScreen() {
               size={18}
               color={
                 activeSection === "privacy" && isDesktop
+                  ? colors.primary
+                  : colors.icon
+              }
+            />
+          ),
+        },
+        {
+          id: "blocked-users",
+          label: "Blocked users",
+          icon: (
+            <Ban
+              size={18}
+              color={
+                activeSection === "blocked-users" && isDesktop
                   ? colors.primary
                   : colors.icon
               }
@@ -642,6 +658,22 @@ export default function SettingsScreen() {
                     setActivityVisible((v) => !v),
                   )}
                 </View>
+              </>,
+            )}
+          </View>
+        );
+
+      case "blocked-users":
+        return (
+          <View>
+            {isDesktop && renderSectionHeading("Blocked users")}
+            {renderCard(
+              <>
+                {renderRow(
+                  <Ban size={20} color={colors.icon} />,
+                  "Manage blocked users",
+                  () => router.push("/settings/blocked-users"),
+                )}
               </>,
             )}
           </View>

@@ -24,6 +24,7 @@ import { OptionsModal } from '@/components/ui/OptionsModal';
 import { ReportModal } from '@/components/ui/ReportModal';
 import { SaveBoardPicker } from '@/components/pins/SaveBoardPicker';
 import { pickVariant, variantForWidth } from '@/utils/imageVariants';
+import { confirmAction } from '@/utils/alerts';
 import { supabase } from '@/lib/supabase/client';
 import { useAuthStore } from '@/stores/authStore';
 import type { FeedPin } from '@/types/database';
@@ -103,15 +104,22 @@ export function PinCard({ pin, columnWidth, onSavePress }: PinCardProps) {
     }
   }, []);
 
-  const handleBlockUser = useCallback(async () => {
+  const handleBlockUser = useCallback(() => {
     if (!user) return;
-    const { error } = await supabase
-      .from('user_blocks')
-      .insert({ blocker_id: user.id, blocked_id: pin.user_id });
-    if (!error) {
-      setIsHidden(true);
-    }
-  }, [user, pin.user_id]);
+    confirmAction(
+      'Block User',
+      `Are you sure you want to block @${pin.profile?.username}? You won't see their pins anymore.`,
+      async () => {
+        const { error } = await supabase
+          .from('user_blocks')
+          .insert({ blocker_id: user.id, blocked_id: pin.user_id });
+        if (!error) {
+          setIsHidden(true);
+        }
+      },
+      true
+    );
+  }, [user, pin.user_id, pin.profile?.username]);
 
   const handleShare = useCallback(() => {
     Share.share({

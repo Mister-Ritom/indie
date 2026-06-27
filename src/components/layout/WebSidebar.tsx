@@ -1066,6 +1066,36 @@ function SettingsPanel({
           </View>
         </View>
 
+        {/* View All Settings */}
+        <TouchableOpacity
+          onPress={() => {
+            onClose();
+            router.push("/settings");
+          }}
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            backgroundColor: colors.surface,
+            borderRadius: radius.md,
+            padding: spacing.md,
+            borderWidth: 1,
+            borderColor: colors.border,
+          }}
+          activeOpacity={0.7}
+        >
+          <Text
+            style={{
+              fontFamily: typography.families.headingMedium,
+              fontSize: typography.scale.body,
+              color: colors.text,
+            }}
+          >
+            View all settings
+          </Text>
+          <ChevronRight size={18} color={colors.textSecondary} />
+        </TouchableOpacity>
+
         {/* Links */}
         <View
           style={{
