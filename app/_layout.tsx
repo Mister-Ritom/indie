@@ -150,15 +150,7 @@ function RootLayoutInner() {
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(onboarding)" />
         <Stack.Screen name="(tabs)" />
-        {/* Root-level transparent modal — overlays tabs + tab bar */}
-        <Stack.Screen
-          name="create-menu"
-          options={{
-            presentation: "transparentModal",
-            animation: "slide_from_bottom",
-            contentStyle: { backgroundColor: "transparent" },
-          }}
-        />
+
         <Stack.Screen
           name="photo-editor"
           options={{ presentation: "fullScreenModal" }}
