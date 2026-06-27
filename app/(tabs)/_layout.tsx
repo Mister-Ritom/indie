@@ -1,13 +1,26 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { View, Platform, Dimensions, Pressable } from "react-native";
 import { NativeTabs } from "expo-router/unstable-native-tabs";
 import { router } from "expo-router";
 import { useNotifications } from "@/hooks/useNotifications";
+import * as Haptics from "expo-haptics";
+
 const TAB_COUNT = 5;
 const CREATE_TAB_INDEX = 2;
 export default function TabLayout() {
   const screenWidth = Dimensions.get("window").width;
   const tabWidth = screenWidth / TAB_COUNT;
+  const [isNavigating, setIsNavigating] = useState(false);
+
+  const handleCreatePress = () => {
+    if (isNavigating) return;
+    setIsNavigating(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    router.push("/create-menu");
+    setTimeout(() => {
+      setIsNavigating(false);
+    }, 1000);
+  };
 
   const TAB_BAR_HEIGHT = Platform.OS === "ios" ? 83 : 56;
   useEffect(() => {
@@ -50,7 +63,8 @@ export default function TabLayout() {
       </NativeTabs>
       {/* Transparent overlay exactly covering the Create tab button */}
       <Pressable
-        onPress={() => router.push("/create-menu")}
+        onPress={handleCreatePress}
+        disabled={isNavigating}
         style={{
           position: "absolute",
           bottom: Platform.select({ ios: 0, android: 32 }),
