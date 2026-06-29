@@ -46,11 +46,15 @@ export function PinCard({ pin, columnWidth, onSavePress }: PinCardProps) {
   const [showSavePicker, setShowSavePicker] = useState(false);
   const [isHidden, setIsHidden] = useState(false);
 
+  const isWeb = Platform.OS === 'web';
+
   // Calculate image height to preserve aspect ratio
   const aspectRatio =
     pin.width && pin.height && pin.height > 0 ? pin.width / pin.height : 0.75;
   const imageHeight = Math.round(columnWidth / aspectRatio);
   const cappedHeight = Math.min(Math.max(imageHeight, columnWidth * 0.5), columnWidth * 1.8);
+  // On web use CSS aspectRatio so height responds to fluid width changes
+  const webAspectRatio = Math.min(Math.max(aspectRatio, 0.5), 1.8);
 
   const variant = variantForWidth(columnWidth);
   const imageUrl = pickVariant(pin.assets ?? [], variant);
@@ -164,6 +168,9 @@ export function PinCard({ pin, columnWidth, onSavePress }: PinCardProps) {
         style={[
           cardStyle,
           {
+            // Use the pixel columnWidth on both platforms — on web the parent
+            // absolute-positioned container already has explicit pixel width,
+            // so the card fills it correctly.
             width: columnWidth,
             marginBottom: spacing.sm,
             borderRadius: radius.lg,
@@ -194,7 +201,11 @@ export function PinCard({ pin, columnWidth, onSavePress }: PinCardProps) {
           <View
             style={{
               width: columnWidth,
-              height: cappedHeight,
+              // On web use CSS aspectRatio so height scales correctly;
+              // on native use the pre-calculated fixed pixel height.
+              ...(isWeb
+                ? { aspectRatio: webAspectRatio }
+                : { height: cappedHeight }),
               backgroundColor: pin.dominant_color ?? colors.skeleton,
               borderRadius: radius.lg,
               overflow: 'hidden',
@@ -203,7 +214,10 @@ export function PinCard({ pin, columnWidth, onSavePress }: PinCardProps) {
             {imageUrl && (
               <Image
                 source={{ uri: imageUrl }}
-                style={{ width: columnWidth, height: cappedHeight }}
+                style={isWeb
+                  ? { width: columnWidth, height: '100%' }
+                  : { width: columnWidth, height: cappedHeight }
+                }
                 contentFit="cover"
                 contentPosition="top center"
                 transition={300}

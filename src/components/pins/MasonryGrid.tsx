@@ -6,7 +6,6 @@ import {
   ActivityIndicator,
   Text,
 } from "react-native";
-// 💡 Back to the standard FlashList import for v2.x
 import { FlashList } from "@shopify/flash-list";
 import { PinCard } from "./PinCard";
 import { useTheme } from "@/hooks/useTheme";
@@ -47,20 +46,21 @@ export function MasonryGrid({
   const actualSidebarWidth = showSidebar ? (activePanel ? 80 + 360 : 80) : 0;
   const contentWidth = width - actualSidebarWidth;
 
-  // Derive column count from available width so the grid reflows when the
-  // sidebar panel opens/closes, rather than just shrinking the cards.
+  // Derive column count from available width
   const MIN_CARD_WIDTH = 170;
   const usableWidth = contentWidth - grid.contentPadding * 2;
-  const numCols = Math.max(2, Math.floor((usableWidth + grid.gap) / (MIN_CARD_WIDTH + grid.gap)));
+  const numCols = Math.max(
+    2,
+    Math.floor((usableWidth + grid.gap) / (MIN_CARD_WIDTH + grid.gap))
+  );
 
   const colW = columnWidth(contentWidth, numCols, grid.gap, grid.contentPadding);
 
-  // Memorize the render item function for performance
   const renderItem = useCallback(
     ({ item }: { item: FeedPin }) => (
       <PinCard pin={item} columnWidth={colW} onSavePress={onSavePin} />
     ),
-    [colW, onSavePin],
+    [colW, onSavePin]
   );
 
   if (isLoading) {
@@ -87,14 +87,12 @@ export function MasonryGrid({
     );
   }
 
-
-
   return (
     <FlashList
       key={numCols}
       data={pins}
       numColumns={numCols}
-      masonry={true} // 💡 The magic switch for FlashList v2!
+      masonry={true}
       renderItem={renderItem}
       keyExtractor={(item) => item.id.toString()}
       refreshControl={
@@ -119,7 +117,7 @@ export function MasonryGrid({
               alignItems: "center",
               justifyContent: "center",
               padding: spacing.xl,
-              marginTop: 100, // Push it down towards center
+              marginTop: 100,
             }}
           >
             <Text
