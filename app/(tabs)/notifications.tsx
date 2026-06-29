@@ -106,15 +106,16 @@ export default function NotificationsScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={showSidebar ? ['top', 'bottom'] : ['top']}>
-      <View style={{ padding: spacing.lg, borderBottomWidth: 1, borderBottomColor: colors.border }}>
-        <Text style={{ fontFamily: typography.families.headingBold, fontSize: typography.scale.h2, color: colors.text }}>
-          Notifications
-        </Text>
-      </View>
-
       {isLoading ? (
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <ActivityIndicator size="large" color={colors.primary} />
+        <View style={{ flex: 1 }}>
+          <View style={{ padding: spacing.lg, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+            <Text style={{ fontFamily: typography.families.headingBold, fontSize: typography.scale.h2, color: colors.text }}>
+              Notifications
+            </Text>
+          </View>
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+            <ActivityIndicator size="large" color={colors.primary} />
+          </View>
         </View>
       ) : (
         <FlatList
@@ -123,6 +124,13 @@ export default function NotificationsScreen() {
           renderItem={renderItem}
           refreshing={isLoading}
           onRefresh={refresh}
+          ListHeaderComponent={
+            <View style={{ padding: spacing.lg, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+              <Text style={{ fontFamily: typography.families.headingBold, fontSize: typography.scale.h2, color: colors.text }}>
+                Notifications
+              </Text>
+            </View>
+          }
           ListEmptyComponent={
             <View style={{ padding: spacing.xl, alignItems: 'center' }}>
               <Text style={{ fontFamily: typography.families.body, fontSize: typography.scale.bodyLarge, color: colors.textSecondary }}>

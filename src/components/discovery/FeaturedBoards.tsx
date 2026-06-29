@@ -88,6 +88,7 @@ export function FeaturedBoards({ boards, isLoading }: FeaturedBoardsProps) {
         data={boards}
         keyExtractor={(item) => item.id}
         horizontal
+        scrollsToTop={false}
         showsHorizontalScrollIndicator={false}
         snapToInterval={CARD_WIDTH + spacing.md}
         decelerationRate="fast"

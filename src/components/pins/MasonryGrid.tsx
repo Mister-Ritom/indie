@@ -24,6 +24,7 @@ interface MasonryGridProps {
   emptyMessage?: string;
   ListHeaderComponent?: React.ReactElement;
   onSavePin?: (pin: FeedPin) => void;
+  scrollsToTop?: boolean;
 }
 
 export function MasonryGrid({
@@ -36,6 +37,7 @@ export function MasonryGrid({
   emptyMessage = "No pins yet",
   ListHeaderComponent,
   onSavePin,
+  scrollsToTop = true,
 }: MasonryGridProps) {
   const { colors, spacing, typography } = useTheme();
   const { width } = useWindowDimensions();
@@ -108,6 +110,7 @@ export function MasonryGrid({
       onEndReached={onEndReached}
       onEndReachedThreshold={0.5}
       showsVerticalScrollIndicator={false}
+      scrollsToTop={scrollsToTop}
       ListHeaderComponent={ListHeaderComponent}
       ListEmptyComponent={
         !isLoading && pins.length === 0 ? (

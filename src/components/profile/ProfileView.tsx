@@ -7,6 +7,7 @@ import {
   Share,
   RefreshControl,
   useWindowDimensions,
+  ActivityIndicator,
 } from "react-native";
 import { Image } from "expo-image";
 import { router } from "expo-router";
@@ -287,7 +288,13 @@ export function ProfileView({ userId, isCurrentUser }: ProfileViewProps) {
 
   const authProfile = useAuthStore((state) => state.profile);
 
-  if (!profile) return null;
+  if (!profile) {
+    return (
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
 
   const displayProfile =
     isCurrentUser && authProfile ? { ...profile, ...authProfile } : profile;
@@ -568,208 +575,209 @@ export function ProfileView({ userId, isCurrentUser }: ProfileViewProps) {
   );
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.background }}>
+    <>
+      {/* Content */}
+      {!isBlocked && (
+        <>
+          {/* Created Tab */}
+          <View style={{ flex: 1, display: activeTab === "created" ? "flex" : "none" }}>
+            <MasonryGrid
+              pins={pins}
+              isLoading={isLoading}
+              emptyMessage="No pins created yet."
+              ListHeaderComponent={renderHeader()}
+              isRefreshing={isRefreshing}
+              onRefresh={handleRefresh}
+              scrollsToTop={activeTab === "created"}
+            />
+          </View>
 
-          {/* Content */}
-          {!isBlocked && (
-            <View style={{ flex: 1 }}>
-              {/* Created Tab */}
-              <View style={{ flex: 1, display: activeTab === "created" ? "flex" : "none" }}>
-                <MasonryGrid
-                  pins={pins}
-                  isLoading={isLoading}
-                  emptyMessage="No pins created yet."
-                  ListHeaderComponent={renderHeader()}
-                  isRefreshing={isRefreshing}
+          {/* Saved Tab */}
+          <View style={{ flex: 1, display: activeTab === "saved" ? "flex" : "none" }}>
+            <ScrollView 
+              style={{ flex: 1 }} 
+              contentContainerStyle={{ paddingBottom: spacing.xxl }}
+              showsVerticalScrollIndicator={false}
+              scrollsToTop={activeTab === "saved"}
+              refreshControl={
+                <RefreshControl
+                  refreshing={isRefreshing}
                   onRefresh={handleRefresh}
+                  tintColor={colors.primary}
+                  colors={[colors.primary]}
                 />
-              </View>
-
-              {/* Saved Tab */}
-              <View style={{ flex: 1, display: activeTab === "saved" ? "flex" : "none" }}>
-                <ScrollView 
-                  style={{ flex: 1 }} 
-                  contentContainerStyle={{ paddingBottom: spacing.xxl }}
-                  showsVerticalScrollIndicator={false}
-                  refreshControl={
-                    <RefreshControl
-                      refreshing={isRefreshing}
-                      onRefresh={handleRefresh}
-                      tintColor={colors.primary}
-                      colors={[colors.primary]}
-                    />
-                  }
-                >
-                  {renderHeader()}
-                  <View
+              }
+            >
+              {renderHeader()}
+              <View
+                style={{
+                  paddingHorizontal: spacing.md,
+                  flexDirection: "row",
+                  flexWrap: "wrap",
+                  gap: spacing.md,
+                }}
+              >
+                {/* All / Quick Saves Card */}
+                {(isCurrentUser || !displayProfile.all_saves_private) && (
+                  <TouchableOpacity
+                    onPress={() => router.push(`/saved-pins?userId=${userId}`)}
                     style={{
-                      paddingHorizontal: spacing.md,
-                      flexDirection: "row",
-                      flexWrap: "wrap",
-                      gap: spacing.md,
+                      width: cardWidth,
+                      height: cardWidth,
+                      backgroundColor: recentSaves.length === 0 ? colors.border : colors.surface,
+                      borderRadius: radius.lg,
+                      overflow: "hidden",
                     }}
                   >
-                    {/* All / Quick Saves Card */}
-                    {(isCurrentUser || !displayProfile.all_saves_private) && (
-                      <TouchableOpacity
-                        onPress={() => router.push(`/saved-pins?userId=${userId}`)}
+                    {/* Cover mosaic */}
+                    {recentSaves.length > 0 && (
+                      <View
                         style={{
-                          width: cardWidth,
-                          height: cardWidth,
-                          backgroundColor: recentSaves.length === 0 ? colors.border : colors.surface,
-                          borderRadius: radius.lg,
-                          overflow: "hidden",
+                          ...absoluteFill,
+                          flexDirection: "row",
+                          flexWrap: "wrap",
                         }}
                       >
-                        {/* Cover mosaic */}
-                        {recentSaves.length > 0 && (
+                        {recentSaves.map((url, i) => (
                           <View
+                            key={i}
                             style={{
-                              ...absoluteFill,
-                              flexDirection: "row",
-                              flexWrap: "wrap",
+                              width: recentSaves.length === 1 ? "100%" : "50%",
+                              height: recentSaves.length <= 2 ? "100%" : "50%",
                             }}
                           >
-                            {recentSaves.map((url, i) => (
-                              <View
-                                key={i}
-                                style={{
-                                  width: recentSaves.length === 1 ? "100%" : "50%",
-                                  height: recentSaves.length <= 2 ? "100%" : "50%",
-                                }}
-                              >
-                                <Image
-                                  source={{ uri: url }}
-                                  contentFit="cover"
-                                  style={{ width: "100%", height: "100%" }}
-                                />
-                              </View>
-                            ))}
-                            {/* Scrim */}
-                            <View
-                              style={{
-                                ...absoluteFill,
-                                backgroundColor: "rgba(0,0,0,0.3)",
-                              }}
+                            <Image
+                              source={{ uri: url }}
+                              contentFit="cover"
+                              style={{ width: "100%", height: "100%" }}
                             />
                           </View>
-                        )}
-                        
-                        {/* Label */}
+                        ))}
+                        {/* Scrim */}
                         <View
                           style={{
                             ...absoluteFill,
-                            padding: spacing.md,
-                            justifyContent: "flex-end",
-                            zIndex: 10,
+                            backgroundColor: "rgba(0,0,0,0.3)",
                           }}
-                          pointerEvents="none"
-                        >
-                          <Text
-                            style={{
-                              fontFamily: typography.families.headingMedium,
-                              fontSize: typography.scale.bodyLarge,
-                              color: recentSaves.length > 0 ? "#fff" : colors.text,
-                            }}
-                          >
-                            {"Quick Saves"}
-                          </Text>
-                          {displayProfile.all_saves_private && (
-                            <Text
-                              style={{
-                                fontFamily: typography.families.body,
-                                fontSize: typography.scale.caption,
-                                color: recentSaves.length > 0 ? "rgba(255,255,255,0.8)" : colors.textSecondary,
-                              }}
-                            >
-                              {"Private"}
-                            </Text>
-                          )}
-                        </View>
-                      </TouchableOpacity>
+                        />
+                      </View>
                     )}
-
-                    {/* Board cards */}
-                    {boards.map((board) => (
-                      <TouchableOpacity
-                        key={board.id}
-                        onPress={() => router.push(`/board/${board.id}`)}
+                    
+                    {/* Label */}
+                    <View
+                      style={{
+                        ...absoluteFill,
+                        padding: spacing.md,
+                        justifyContent: "flex-end",
+                        zIndex: 10,
+                      }}
+                      pointerEvents="none"
+                    >
+                      <Text
                         style={{
-                          width: cardWidth,
-                          height: cardWidth,
-                          backgroundColor: (!board.previewUrls || board.previewUrls.length === 0) ? colors.border : colors.surface,
-                          borderRadius: radius.lg,
-                          overflow: "hidden",
+                          fontFamily: typography.families.headingMedium,
+                          fontSize: typography.scale.bodyLarge,
+                          color: recentSaves.length > 0 ? "#fff" : colors.text,
                         }}
                       >
-                        {/* Cover mosaic for boards */}
-                        {board.previewUrls && board.previewUrls.length > 0 && (
-                          <View
-                            style={{
-                              ...absoluteFill,
-                              flexDirection: "row",
-                              flexWrap: "wrap",
-                            }}
-                          >
-                            {board.previewUrls.map((url: string, i: number) => (
-                              <View
-                                key={i}
-                                style={{
-                                  width: board.previewUrls.length === 1 ? "100%" : "50%",
-                                  height: board.previewUrls.length <= 2 ? "100%" : "50%",
-                                }}
-                              >
-                                <Image
-                                  source={{ uri: url }}
-                                  contentFit="cover"
-                                  style={{ width: "100%", height: "100%" }}
-                                />
-                              </View>
-                            ))}
-                            {/* Scrim */}
-                            <View
-                              style={{
-                                ...absoluteFill,
-                                backgroundColor: "rgba(0,0,0,0.3)",
-                              }}
-                            />
-                          </View>
-                        )}
-                        <View
+                        {"Quick Saves"}
+                      </Text>
+                      {displayProfile.all_saves_private && (
+                        <Text
                           style={{
-                            flex: 1,
-                            padding: spacing.md,
-                            justifyContent: "flex-end",
+                            fontFamily: typography.families.body,
+                            fontSize: typography.scale.caption,
+                            color: recentSaves.length > 0 ? "rgba(255,255,255,0.8)" : colors.textSecondary,
                           }}
                         >
-                          <Text
+                          {"Private"}
+                        </Text>
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                )}
+
+                {/* Board cards */}
+                {boards.map((board) => (
+                  <TouchableOpacity
+                    key={board.id}
+                    onPress={() => router.push(`/board/${board.id}`)}
+                    style={{
+                      width: cardWidth,
+                      height: cardWidth,
+                      backgroundColor: (!board.previewUrls || board.previewUrls.length === 0) ? colors.border : colors.surface,
+                      borderRadius: radius.lg,
+                      overflow: "hidden",
+                    }}
+                  >
+                    {/* Cover mosaic for boards */}
+                    {board.previewUrls && board.previewUrls.length > 0 && (
+                      <View
+                        style={{
+                          ...absoluteFill,
+                          flexDirection: "row",
+                          flexWrap: "wrap",
+                        }}
+                      >
+                        {board.previewUrls.map((url: string, i: number) => (
+                          <View
+                            key={i}
                             style={{
-                              fontFamily: typography.families.headingMedium,
-                              fontSize: typography.scale.bodyLarge,
-                              color: (board.previewUrls && board.previewUrls.length > 0) ? "#fff" : colors.text,
+                              width: board.previewUrls.length === 1 ? "100%" : "50%",
+                              height: board.previewUrls.length <= 2 ? "100%" : "50%",
                             }}
                           >
-                            {board.name}
-                          </Text>
-                          {board.is_private ? (
-                            <Text
-                              style={{
-                                fontFamily: typography.families.body,
-                                fontSize: typography.scale.caption,
-                                color: (board.previewUrls && board.previewUrls.length > 0) ? "rgba(255,255,255,0.8)" : colors.textSecondary,
-                              }}
-                            >
-                              {"Private"}
-                            </Text>
-                          ) : null}
-                        </View>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </ScrollView>
+                            <Image
+                              source={{ uri: url }}
+                              contentFit="cover"
+                              style={{ width: "100%", height: "100%" }}
+                            />
+                          </View>
+                        ))}
+                        {/* Scrim */}
+                        <View
+                          style={{
+                            ...absoluteFill,
+                            backgroundColor: "rgba(0,0,0,0.3)",
+                          }}
+                        />
+                      </View>
+                    )}
+                    <View
+                      style={{
+                        flex: 1,
+                        padding: spacing.md,
+                        justifyContent: "flex-end",
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontFamily: typography.families.headingMedium,
+                          fontSize: typography.scale.bodyLarge,
+                          color: (board.previewUrls && board.previewUrls.length > 0) ? "#fff" : colors.text,
+                        }}
+                      >
+                        {board.name}
+                      </Text>
+                      {board.is_private ? (
+                        <Text
+                          style={{
+                            fontFamily: typography.families.body,
+                            fontSize: typography.scale.caption,
+                            color: (board.previewUrls && board.previewUrls.length > 0) ? "rgba(255,255,255,0.8)" : colors.textSecondary,
+                          }}
+                        >
+                          {"Private"}
+                        </Text>
+                      ) : null}
+                    </View>
+                  </TouchableOpacity>
+                ))}
               </View>
-            </View>
-          )}
+            </ScrollView>
+          </View>
+        </>
+      )}
 
       {/* Options Modal */}
       <OptionsModal
@@ -799,6 +807,6 @@ export function ProfileView({ userId, isCurrentUser }: ProfileViewProps) {
         type="user"
         targetId={userId}
       />
-    </View>
+    </>
   );
 }

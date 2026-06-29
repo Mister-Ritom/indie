@@ -33,17 +33,15 @@ export function DiscoveryFeed({ onSavePin }: DiscoveryFeedProps) {
   );
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <MasonryGrid
-        pins={ideas.pins}
-        isLoading={ideas.isLoading && ideas.pins.length === 0}
-        isRefreshing={ideas.isRefreshing}
-        isLoadingMore={ideas.isLoadingMore}
-        onRefresh={ideas.refresh}
-        onEndReached={ideas.loadMore}
-        onSavePin={onSavePin}
-        ListHeaderComponent={Header}
-      />
-    </View>
+    <MasonryGrid
+      pins={ideas.pins}
+      isLoading={ideas.isLoading && ideas.pins.length === 0}
+      isRefreshing={ideas.isRefreshing}
+      isLoadingMore={ideas.isLoadingMore}
+      onRefresh={ideas.refresh}
+      onEndReached={ideas.loadMore}
+      onSavePin={onSavePin}
+      ListHeaderComponent={Header}
+    />
   );
 }

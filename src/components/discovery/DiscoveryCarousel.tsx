@@ -63,6 +63,7 @@ export function DiscoveryCarousel({ pins, isLoading }: DiscoveryCarouselProps) {
         data={pins}
         keyExtractor={(item) => item.id}
         horizontal
+        scrollsToTop={false}
         pagingEnabled
         showsHorizontalScrollIndicator={false}
         onScroll={onScroll}
