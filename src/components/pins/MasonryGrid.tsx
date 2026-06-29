@@ -13,6 +13,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 import { columnWidth } from "@/utils/imageVariants";
 import type { FeedPin } from "@/types/database";
+import { useSidebarStore } from "@/stores/sidebarStore";
 
 interface MasonryGridProps {
   pins: FeedPin[];
@@ -39,16 +40,20 @@ export function MasonryGrid({
 }: MasonryGridProps) {
   const { colors, spacing, typography } = useTheme();
   const { width } = useWindowDimensions();
-  const { masonryCols, showSidebar, grid } = useBreakpoint();
+  const { showSidebar, grid } = useBreakpoint();
+  const activePanel = useSidebarStore((s) => s.activePanel);
 
-  // Account for sidebar width on web
-  const contentWidth = showSidebar ? width - grid.sidebarWidth : width;
-  const colW = columnWidth(
-    contentWidth,
-    masonryCols,
-    grid.gap,
-    grid.contentPadding,
-  );
+  // Actual sidebar footprint: 80px icon bar, +360px when a panel is open
+  const actualSidebarWidth = showSidebar ? (activePanel ? 80 + 360 : 80) : 0;
+  const contentWidth = width - actualSidebarWidth;
+
+  // Derive column count from available width so the grid reflows when the
+  // sidebar panel opens/closes, rather than just shrinking the cards.
+  const MIN_CARD_WIDTH = 170;
+  const usableWidth = contentWidth - grid.contentPadding * 2;
+  const numCols = Math.max(2, Math.floor((usableWidth + grid.gap) / (MIN_CARD_WIDTH + grid.gap)));
+
+  const colW = columnWidth(contentWidth, numCols, grid.gap, grid.contentPadding);
 
   // Memorize the render item function for performance
   const renderItem = useCallback(
@@ -86,8 +91,9 @@ export function MasonryGrid({
 
   return (
     <FlashList
+      key={numCols}
       data={pins}
-      numColumns={masonryCols}
+      numColumns={numCols}
       masonry={true} // 💡 The magic switch for FlashList v2!
       renderItem={renderItem}
       keyExtractor={(item) => item.id.toString()}
