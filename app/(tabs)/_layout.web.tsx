@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { View, Pressable } from "react-native";
 import { Tabs, router, usePathname } from "expo-router";
 import { Home, Search, PlusCircle, Bell, User } from "lucide-react-native";
@@ -7,6 +7,7 @@ import { useBreakpoint } from "@/hooks/useBreakpoint";
 import { WebSidebar } from "@/components/layout/WebSidebar";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useSidebarStore } from "@/stores/sidebarStore";
+import { CreateMenuModal } from "@/components/CreateMenuModal";
 
 export default function TabLayout() {
   const { colors } = useTheme();
@@ -14,10 +15,12 @@ export default function TabLayout() {
   const { unreadCount } = useNotifications();
   const pathname = usePathname();
   const { activePanel, closePanel } = useSidebarStore();
+  const [isCreateModalVisible, setCreateModalVisible] = useState(false);
 
   // Close active side panel when the route/pathname changes, unless it is the search panel on search page
   useEffect(() => {
-    const isSearchRoute = pathname === "/search" || pathname === "/(tabs)/search";
+    const isSearchRoute =
+      pathname === "/search" || pathname === "/(tabs)/search";
     if (activePanel === "search" && isSearchRoute) {
       return;
     }
@@ -25,7 +28,6 @@ export default function TabLayout() {
   }, [pathname]);
 
   useEffect(() => {
-    router.prefetch("/create-menu");
     if (!showSidebar) {
       const style = document.createElement("style");
       style.textContent = `
@@ -90,7 +92,7 @@ export default function TabLayout() {
               listeners={{
                 tabPress: (e) => {
                   e.preventDefault();
-                  router.push("/create-menu");
+                  setCreateModalVisible(true);
                 },
               }}
             />
@@ -152,7 +154,7 @@ export default function TabLayout() {
           listeners={{
             tabPress: (e) => {
               e.preventDefault();
-              router.push("/create-menu");
+              setCreateModalVisible(true);
             },
           }}
         />
@@ -176,6 +178,10 @@ export default function TabLayout() {
           }}
         />
       </Tabs>
+      <CreateMenuModal
+        visible={isCreateModalVisible}
+        onClose={() => setCreateModalVisible(false)}
+      />
     </View>
   );
 }

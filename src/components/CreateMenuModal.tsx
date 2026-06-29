@@ -72,140 +72,143 @@ export function CreateMenuModal({ visible, onClose }: CreateMenuModalProps) {
   const isWeb = Platform.OS === "web";
 
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      transparent
-      onRequestClose={onClose}
-    >
-      <View
-        style={{
-          flex: 1,
-          backgroundColor: "transparent",
-          justifyContent: "flex-end",
-          alignItems: isWeb ? "center" : "stretch",
-        }}
-      >
+    <>
+      <Modal visible={visible} animationType="fade" transparent>
         {/* Dimmed backdrop — tap to dismiss */}
         <TouchableWithoutFeedback onPress={onClose}>
           <View
             style={{
               position: "absolute",
+              backgroundColor: Platform.select({
+                default: "rgba(0, 0, 0, 0.4)",
+                web: "rgba(0, 0, 0, 0.5)",
+              }),
               top: 0,
               left: 0,
               right: 0,
               bottom: 0,
-              backgroundColor: Platform.select({
-                default: "rgba(0, 0, 0, 0.4)", // Added a slight dim on mobile for better contrast
-                web: "rgba(0, 0, 0, 0.5)",
-              }),
             }}
           />
         </TouchableWithoutFeedback>
-
-        {/* Responsive Sheet / Modal Card */}
-        <SafeAreaView
-          edges={isWeb ? [] : ["bottom"]}
+      </Modal>
+      <Modal
+        visible={visible}
+        animationType="slide"
+        transparent
+        onRequestClose={onClose}
+      >
+        <View
           style={{
-            backgroundColor: colors.surfaceElevated,
-            paddingTop: spacing.sm,
-            paddingHorizontal: spacing.xl,
-            paddingBottom: spacing.lg,
-            ...(isWeb
-              ? {
-                  width: 440,
-                  borderRadius: radius.xl,
-                  boxShadow: "0px 10px 30px rgba(0, 0, 0, 0.2)",
-                  marginBottom: spacing.xxl,
-                }
-              : {
-                  borderTopLeftRadius: radius.xl,
-                  borderTopRightRadius: radius.xl,
-                }),
+            flex: 1,
+            backgroundColor: "transparent",
+            justifyContent: "flex-end",
+            alignItems: isWeb ? "center" : "stretch",
           }}
         >
-          {/* Drag handle — Only render on native layout */}
-          {!isWeb && (
-            <View style={{ alignItems: "center", marginBottom: spacing.lg }}>
-              <View
+          {/* Responsive Sheet / Modal Card */}
+          <SafeAreaView
+            edges={isWeb ? [] : ["bottom"]}
+            style={{
+              backgroundColor: colors.surfaceElevated,
+              paddingTop: spacing.sm,
+              paddingHorizontal: spacing.xl,
+              paddingBottom: spacing.lg,
+              ...(isWeb
+                ? {
+                    width: 440,
+                    borderRadius: radius.xl,
+                    boxShadow: "0px 10px 30px rgba(0, 0, 0, 0.2)",
+                  }
+                : {
+                    borderTopLeftRadius: radius.xl,
+                    borderTopRightRadius: radius.xl,
+                  }),
+            }}
+          >
+            {/* Drag handle — Only render on native layout */}
+            {!isWeb && (
+              <View style={{ alignItems: "center", marginBottom: spacing.lg }}>
+                <View
+                  style={{
+                    width: 36,
+                    height: 4,
+                    borderRadius: 2,
+                    backgroundColor: colors.border,
+                  }}
+                />
+              </View>
+            )}
+
+            {/* Header */}
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginBottom: spacing.xl,
+                marginTop: spacing.sm,
+                marginHorizontal: spacing.md,
+              }}
+            >
+              <View style={{ width: 22 }} />
+              <Text
                 style={{
-                  width: 36,
-                  height: 4,
-                  borderRadius: 2,
-                  backgroundColor: colors.border,
+                  fontFamily: typography.families.heading,
+                  fontSize: typography.scale.bodyLarge,
+                  color: colors.text,
                 }}
+              >
+                Start creating now
+              </Text>
+              <TouchableOpacity
+                onPress={onClose}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <X size={22} color={colors.icon} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Options */}
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "center",
+                gap: spacing.xxl,
+                paddingBottom: spacing.lg,
+              }}
+            >
+              <CreateOption
+                icon={<Pin size={32} color={colors.icon} />}
+                label="Pin"
+                onPress={() => {
+                  onClose();
+                  setTimeout(() => {
+                    router.push("/create/pin");
+                  }, 50);
+                }}
+                colors={colors}
+                typography={typography}
+                spacing={spacing}
+                radius={radius}
+              />
+              <CreateOption
+                icon={<LayoutGrid size={32} color={colors.icon} />}
+                label="Board"
+                onPress={() => {
+                  onClose();
+                  setTimeout(() => {
+                    router.push("/create/board");
+                  }, 50);
+                }}
+                colors={colors}
+                typography={typography}
+                spacing={spacing}
+                radius={radius}
               />
             </View>
-          )}
-
-          {/* Header */}
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "space-between",
-              marginBottom: spacing.xl,
-              marginTop: spacing.sm,
-            }}
-          >
-            <TouchableOpacity
-              onPress={onClose}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              <X size={22} color={colors.icon} />
-            </TouchableOpacity>
-            <Text
-              style={{
-                fontFamily: typography.families.heading,
-                fontSize: typography.scale.bodyLarge,
-                color: colors.text,
-              }}
-            >
-              Start creating now
-            </Text>
-            <View style={{ width: 22 }} />
-          </View>
-
-          {/* Options */}
-          <View
-            style={{
-              flexDirection: "row",
-              justifyContent: "center",
-              gap: spacing.xxl,
-              paddingBottom: spacing.lg,
-            }}
-          >
-            <CreateOption
-              icon={<Pin size={32} color={colors.icon} />}
-              label="Pin"
-              onPress={() => {
-                onClose();
-                setTimeout(() => {
-                  router.push("/create/pin");
-                }, 50);
-              }}
-              colors={colors}
-              typography={typography}
-              spacing={spacing}
-              radius={radius}
-            />
-            <CreateOption
-              icon={<LayoutGrid size={32} color={colors.icon} />}
-              label="Board"
-              onPress={() => {
-                onClose();
-                setTimeout(() => {
-                  router.push("/create/board");
-                }, 50);
-              }}
-              colors={colors}
-              typography={typography}
-              spacing={spacing}
-              radius={radius}
-            />
-          </View>
-        </SafeAreaView>
-      </View>
-    </Modal>
+          </SafeAreaView>
+        </View>
+      </Modal>
+    </>
   );
 }

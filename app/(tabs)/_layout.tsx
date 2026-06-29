@@ -1,7 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { View, Platform, Dimensions, Pressable } from "react-native";
 import { NativeTabs } from "expo-router/unstable-native-tabs";
-import { router } from "expo-router";
 import { useNotifications } from "@/hooks/useNotifications";
 import * as Haptics from "expo-haptics";
 import { CreateMenuModal } from "@/components/CreateMenuModal";
@@ -25,7 +24,6 @@ export default function TabLayout() {
   };
 
   const TAB_BAR_HEIGHT = Platform.OS === "ios" ? 83 : 56;
-  // removed prefetch for create-menu since it is now a modal component
 
   const { unreadCount } = useNotifications();
 
@@ -83,9 +81,9 @@ export default function TabLayout() {
         accessibilityLabel="Create"
         accessibilityRole="button"
       />
-      <CreateMenuModal 
-        visible={isCreateModalVisible} 
-        onClose={() => setCreateModalVisible(false)} 
+      <CreateMenuModal
+        visible={isCreateModalVisible}
+        onClose={() => setCreateModalVisible(false)}
       />
     </View>
   );
