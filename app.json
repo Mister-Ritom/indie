@@ -4,16 +4,22 @@
     "slug": "indie",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/indie.jpeg",
+    "icon": "./assets/indie_rem.png",
     "scheme": "me.ritom.indie",
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "me.ritom.indie"
+      "bundleIdentifier": "me.ritom.indie",
+      "infoPlist": {
+        "NSUserTrackingUsageDescription": "This identifier will be used to deliver personalized ads to you."
+      }
     },
     "android": {
       "package": "me.ritom.indie",
-      "permissions": ["android.permission.RECORD_AUDIO"]
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "com.google.android.gms.permission.AD_ID"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -58,6 +64,12 @@
         "projectId": "61931d90-c63d-46a3-8b9e-13e2283aa2b2"
       }
     },
-    "owner": "ritomg"
+    "owner": "ritomg",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/61931d90-c63d-46a3-8b9e-13e2283aa2b2"
+    }
   }
 }
