@@ -80,23 +80,23 @@ export function CreateMenuModal({ visible, onClose }: CreateMenuModalProps) {
   const isWeb = Platform.OS === "web";
 
   const [internalVisible, setInternalVisible] = useState(visible);
-  const translateY = useSharedValue(isWeb ? 0 : 600);
+  const translateY = useSharedValue(600);
   const opacity = useSharedValue(0);
 
   useEffect(() => {
     if (visible) {
       setInternalVisible(true);
       opacity.value = withTiming(1, { duration: 200 });
-      if (!isWeb) translateY.value = withTiming(0, { duration: 250 });
+      translateY.value = withTiming(0, { duration: 250 });
     } else {
       opacity.value = withTiming(0, { duration: 180 });
-      if (!isWeb) translateY.value = withTiming(600, { duration: 220 });
+      translateY.value = withTiming(600, { duration: 220 });
       const timeout = setTimeout(() => {
         setInternalVisible(false);
       }, 250);
       return () => clearTimeout(timeout);
     }
-  }, [visible, isWeb]);
+  }, [visible]);
 
   const backdropStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
@@ -161,7 +161,7 @@ export function CreateMenuModal({ visible, onClose }: CreateMenuModalProps) {
                     borderTopRightRadius: radius.xl,
                   }),
             },
-            isWeb ? backdropStyle : sheetStyle,
+            sheetStyle,
           ]}
         >
           {/* Drag handle — Only render on native layout */}

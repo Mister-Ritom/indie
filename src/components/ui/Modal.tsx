@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Modal as RNModal,
   View,
@@ -28,16 +28,25 @@ interface ModalProps {
 
 export function Modal({ visible, onClose, title, children, height = 'auto' }: ModalProps) {
   const { colors, radius, spacing, typography } = useTheme();
+  
+  const [internalVisible, setInternalVisible] = useState(visible);
+  
   const translateY = useSharedValue(600);
   const opacity = useSharedValue(0);
 
   useEffect(() => {
     if (visible) {
+      setInternalVisible(true);
       opacity.value = withTiming(1, { duration: 200 });
       translateY.value = withTiming(0, { duration: 250 });
     } else {
       opacity.value = withTiming(0, { duration: 180 });
       translateY.value = withTiming(600, { duration: 220 });
+      
+      const timeout = setTimeout(() => {
+        setInternalVisible(false);
+      }, 250);
+      return () => clearTimeout(timeout);
     }
   }, [visible]);
 
@@ -48,7 +57,7 @@ export function Modal({ visible, onClose, title, children, height = 'auto' }: Mo
 
   return (
     <RNModal
-      visible={visible}
+      visible={internalVisible}
       transparent
       animationType="none"
       onRequestClose={onClose}
