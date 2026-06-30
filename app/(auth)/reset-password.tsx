@@ -7,7 +7,7 @@ import {
   Platform,
   TouchableOpacity,
 } from "react-native";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Lock, ArrowLeft } from "lucide-react-native";
@@ -26,12 +26,41 @@ export default function ResetPasswordScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const { code, error: linkError, error_description } = useLocalSearchParams<{
+    code?: string;
+    error?: string;
+    error_description?: string;
+  }>();
+
+  useEffect(() => {
+    if (linkError) {
+      setError(error_description || linkError);
+    }
+
+    if (code && Platform.OS !== "web") {
+      const exchangeCode = async () => {
+        setIsLoading(true);
+        const { error: exchangeError } =
+          await supabase.auth.exchangeCodeForSession(code);
+        if (exchangeError) {
+          setError(exchangeError.message);
+        }
+        setIsLoading(false);
+      };
+      exchangeCode();
+    }
+  }, [code, linkError, error_description]);
+
   const {
     control,
     handleSubmit,
     formState: { errors },
   } = useForm<ResetPasswordForm>({
     resolver: zodResolver(resetPasswordSchema),
+    defaultValues: {
+      password: "",
+      confirmPassword: "",
+    },
   });
 
   const onSubmit = async (data: ResetPasswordForm) => {

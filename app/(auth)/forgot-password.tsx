@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
 } from "react-native";
 import { router } from "expo-router";
+import * as Linking from "expo-linking";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Mail, ArrowLeft } from "lucide-react-native";
@@ -33,15 +34,19 @@ export default function ForgotPasswordScreen() {
     formState: { errors },
   } = useForm<ForgotPasswordForm>({
     resolver: zodResolver(forgotPasswordSchema),
+    defaultValues: {
+      email: "",
+    },
   });
 
   const onSubmit = async (data: ForgotPasswordForm) => {
     setIsLoading(true);
     setError(null);
+    const redirectUrl = Linking.createURL("/reset-password");
     const { error: resetError } = await supabase.auth.resetPasswordForEmail(
       data.email,
       {
-        redirectTo: "me.ritom.indie://reset-password",
+        redirectTo: redirectUrl,
       },
     );
     if (resetError) {
