@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, TextInput } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, TextInput, Platform } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft, ChevronDown, ChevronUp, Search, HelpCircle } from 'lucide-react-native';
 import { useTheme } from '@/hooks/useTheme';
+import { Input } from '@/components/ui/Input';
 
 interface FAQItemProps {
   question: string;
@@ -128,33 +129,13 @@ export default function FAQScreen() {
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: spacing.xl }}>
         {/* Search Bar */}
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            backgroundColor: colors.surface,
-            borderRadius: radius.md,
-            borderWidth: 1,
-            borderColor: colors.border,
-            paddingHorizontal: spacing.md,
-            height: 48,
-            marginBottom: spacing.xl,
-          }}
-        >
-          <Search size={18} color={colors.textSecondary} style={{ marginRight: spacing.sm }} />
-          <TextInput
-            placeholder="Search FAQs..."
-            placeholderTextColor={colors.textSecondary}
-            value={search}
-            onChangeText={setSearch}
-            style={{
-              flex: 1,
-              fontFamily: typography.families.body,
-              fontSize: typography.scale.body,
-              color: colors.text,
-            }}
-          />
-        </View>
+        <Input
+          placeholder="Search FAQs..."
+          value={search}
+          onChangeText={setSearch}
+          leftIcon={<Search size={18} color={colors.textSecondary} />}
+          containerStyle={{ marginBottom: spacing.xl }}
+        />
 
         {filteredFaqs.length > 0 ? (
           filteredFaqs.map((faq, index) => (

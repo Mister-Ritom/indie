@@ -3,7 +3,7 @@ import { View, Image, Text, StyleSheet } from 'react-native';
 import { User } from 'lucide-react-native';
 import { useTheme } from '@/hooks/useTheme';
 
-type AvatarSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
+type AvatarSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl' | 'xxl';
 
 const SIZE_MAP: Record<AvatarSize, number> = {
   xs: 24,
@@ -11,6 +11,7 @@ const SIZE_MAP: Record<AvatarSize, number> = {
   md: 40,
   lg: 56,
   xl: 80,
+  xxl: 120,
 };
 
 interface AvatarProps {

@@ -7,6 +7,7 @@ import {
   StyleSheet,
   ViewStyle,
   TextInputProps,
+  Platform,
 } from 'react-native';
 import { Eye, EyeOff } from 'lucide-react-native';
 import { useTheme } from '@/hooks/useTheme';
@@ -89,6 +90,7 @@ export const Input = forwardRef<TextInput, InputProps>(
                 fontFamily: typography.families.body,
                 fontSize: typography.scale.body,
                 color: colors.text,
+                ...(Platform.OS === 'web' ? { outlineStyle: 'none' } as any : {}),
               },
               props.style,
             ]}

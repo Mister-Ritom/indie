@@ -33,6 +33,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { useThemeStore } from "@/stores/themeStore";
 import { useAuthStore } from "@/stores/authStore";
 import { supabase } from "@/lib/supabase/client";
+import { EditProfileForm } from "@/components/profile/EditProfileForm";
 
 type SectionId =
   | "edit-profile"
@@ -405,28 +406,9 @@ export default function SettingsScreen() {
           <View>
             {isDesktop && renderSectionHeading("Edit profile")}
             {renderCard(
-              <>
-                {renderRow(
-                  <User size={20} color={colors.icon} />,
-                  "Display name",
-                  () => router.push("/settings/edit-profile"),
-                )}
-                {renderRow(
-                  <Mail size={20} color={colors.icon} />,
-                  "Email address",
-                  () => router.push("/settings/edit-profile"),
-                )}
-                {renderRow(
-                  <Smartphone size={20} color={colors.icon} />,
-                  "Phone number",
-                  () => router.push("/settings/edit-profile"),
-                )}
-                {renderRow(
-                  <Lock size={20} color={colors.icon} />,
-                  "Change password",
-                  () => router.push("/settings/edit-profile"),
-                )}
-              </>,
+              <View style={{ padding: spacing.xl }}>
+                <EditProfileForm onSuccess={() => {}} />
+              </View>
             )}
           </View>
         );
@@ -1020,7 +1002,7 @@ export default function SettingsScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{
             padding: spacing.xl,
-            maxWidth: 580,
+            maxWidth: 900,
             width: "100%",
             alignSelf: "flex-start",
           }}

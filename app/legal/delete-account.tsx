@@ -709,6 +709,7 @@ function ConfirmStep({
             fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
             fontSize: typography.scale.body,
             color: colors.text,
+            ...(Platform.OS === 'web' ? { outlineStyle: 'none' } as any : {}),
           }}
           value={typed}
           onChangeText={(t) => {
