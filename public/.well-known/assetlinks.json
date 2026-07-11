@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "me.ritom.indie",
+      "sha256_cert_fingerprints": [
+        "40:6C:C7:EF:9A:3F:09:CA:41:95:75:F5:EC:32:7F:C3:FD:4B:45:CB:1E:97:15:65:90:40:99:CA:60:82:35:CB"
+      ]
+    }
+  }
+]

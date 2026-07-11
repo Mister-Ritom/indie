@@ -357,7 +357,7 @@ export default function PinDetailScreen() {
           {
             label: 'Share',
             icon: <ShareIcon size={20} color={colors.icon} />,
-            onPress: () => Share.share({ url: `https://me.ritom.indie/pin/${pin.id}`, message: 'Check out this pin on Indie!' }),
+            onPress: () => Share.share({ url: `https://indieapp.vercel.app/pin/${pin.id}`, message: 'Check out this pin on Indie!' }),
           },
           {
             label: 'Report Pin',

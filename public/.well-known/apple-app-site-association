@@ -1,0 +1,17 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "WSD2HL5S4F.me.ritom.indie",
+        "paths": [
+          "/pin/*",
+          "/user/*",
+          "/board/*",
+          "/reset-password",
+          "/reset-password/*"
+        ]
+      }
+    ]
+  }
+}

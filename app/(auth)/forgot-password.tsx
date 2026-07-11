@@ -42,7 +42,10 @@ export default function ForgotPasswordScreen() {
   const onSubmit = async (data: ForgotPasswordForm) => {
     setIsLoading(true);
     setError(null);
-    const redirectUrl = Linking.createURL("/reset-password");
+    const redirectUrl =
+      Platform.OS === "web"
+        ? "https://indieapp.vercel.app/reset-password"
+        : Linking.createURL("/reset-password");
     const { error: resetError } = await supabase.auth.resetPasswordForEmail(
       data.email,
       {

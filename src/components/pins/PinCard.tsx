@@ -127,7 +127,7 @@ export function PinCard({ pin, columnWidth, onSavePress }: PinCardProps) {
 
   const handleShare = useCallback(() => {
     Share.share({
-      url: `https://me.ritom.indie/pin/${pin.id}`,
+      url: `https://indieapp.vercel.app/pin/${pin.id}`,
       message: `Check out this pin on Indie!`,
     });
   }, [pin.id]);

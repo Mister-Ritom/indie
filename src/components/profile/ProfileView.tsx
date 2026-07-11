@@ -249,7 +249,7 @@ export function ProfileView({ userId, isCurrentUser }: ProfileViewProps) {
   const handleShare = () => {
     if (profile) {
       Share.share({
-        url: `https://me.ritom.indie/user/${profile.username}`,
+        url: `https://indieapp.vercel.app/user/${profile.username}`,
         message: `Check out @${profile.username} on Indie!`,
       });
     }
