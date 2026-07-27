@@ -11,4 +11,5 @@ node_modules/
 *.log
 *.env
 
-supabase/sqls/
+supabase/sqls/ios/
+android/
