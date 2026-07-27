@@ -10,9 +10,13 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "me.ritom.indie",
-      "associatedDomains": ["applinks:indieapp.vercel.app"],
+      "associatedDomains": [
+        "applinks:indieapp.vercel.app",
+        "applinks:indieapp.vercel.app"
+      ],
       "infoPlist": {
-        "NSUserTrackingUsageDescription": "This identifier will be used to deliver personalized ads to you."
+        "NSUserTrackingUsageDescription": "This identifier will be used to deliver personalized ads to you.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -31,7 +35,10 @@
               "host": "indieapp.vercel.app"
             }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ]
     },
@@ -67,7 +74,8 @@
           "resizeMode": "contain"
         }
       ],
-      "expo-image"
+      "expo-image",
+      "expo-tracking-transparency"
     ],
     "experiments": {
       "typedRoutes": true
