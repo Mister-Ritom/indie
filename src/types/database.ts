@@ -437,7 +437,7 @@ export interface PinDetail extends FeedPin {
 }
 
 export interface BoardWithPins extends Board {
-  profile: Pick<Profile, "id" | "username" | "avatar_url">;
+  profile: Pick<Profile, "id" | "username" | "avatar_url" | "full_name">;
   pins: FeedPin[];
   pins_count: number;
 }
