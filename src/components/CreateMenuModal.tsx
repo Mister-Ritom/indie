@@ -88,6 +88,9 @@ export function CreateMenuModal({ visible, onClose }: CreateMenuModalProps) {
       setInternalVisible(true);
       opacity.value = withTiming(1, { duration: 200 });
       translateY.value = withTiming(0, { duration: 250 });
+      // Prefetch both routes so navigation is instant
+      router.prefetch("/create/pin");
+      router.prefetch("/create/board");
     } else {
       opacity.value = withTiming(0, { duration: 180 });
       translateY.value = withTiming(600, { duration: 220 });
@@ -221,9 +224,7 @@ export function CreateMenuModal({ visible, onClose }: CreateMenuModalProps) {
               label="Pin"
               onPress={() => {
                 onClose();
-                setTimeout(() => {
-                  router.push("/create/pin");
-                }, 280);
+                router.push("/create/pin");
               }}
               colors={colors}
               typography={typography}
@@ -235,9 +236,7 @@ export function CreateMenuModal({ visible, onClose }: CreateMenuModalProps) {
               label="Board"
               onPress={() => {
                 onClose();
-                setTimeout(() => {
-                  router.push("/create/board");
-                }, 280);
+                router.push("/create/board");
               }}
               colors={colors}
               typography={typography}
