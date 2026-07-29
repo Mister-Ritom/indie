@@ -223,7 +223,7 @@ export function CreateMenuModal({ visible, onClose }: CreateMenuModalProps) {
                 onClose();
                 setTimeout(() => {
                   router.push("/create/pin");
-                }, 50);
+                }, 280);
               }}
               colors={colors}
               typography={typography}
@@ -237,7 +237,7 @@ export function CreateMenuModal({ visible, onClose }: CreateMenuModalProps) {
                 onClose();
                 setTimeout(() => {
                   router.push("/create/board");
-                }, 50);
+                }, 280);
               }}
               colors={colors}
               typography={typography}
