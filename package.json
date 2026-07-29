@@ -9,7 +9,8 @@
     "web": "expo start --web",
     "lint": "eslint src/ app/",
     "typecheck": "tsc --noEmit",
-    "eas-build-pre-build": "npx expo install-skia"
+    "eas-build-pre-build": "npx expo install-skia",
+    "gen:types": "supabase gen types typescript --project-id huqnhvsuliyjiplgdkmd > src/types/database.ts"
   },
   "dependencies": {
     "@expo-google-fonts/dm-sans": "^0.2.3",
