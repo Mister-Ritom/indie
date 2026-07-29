@@ -9,7 +9,7 @@ import {
   Image, // Used both as a component and for Image.getSize
   useWindowDimensions,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, SafeAreaProvider } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import * as Crypto from "expo-crypto";
 import { useForm, Controller } from "react-hook-form";
@@ -217,6 +217,7 @@ export default function CreatePinScreen() {
   const isWebDesktop = Platform.OS === "web" && showSidebar;
 
   return (
+    <SafeAreaProvider>
     <SafeAreaView
       style={{ flex: 1, backgroundColor: colors.background }}
       edges={showSidebar ? ["top", "bottom"] : ["top"]}
@@ -644,5 +645,6 @@ export default function CreatePinScreen() {
         ))}
       </Modal>
     </SafeAreaView>
+    </SafeAreaProvider>
   );
 }

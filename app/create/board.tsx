@@ -11,7 +11,7 @@ import {
   KeyboardAvoidingView,
   ActivityIndicator,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { X, Users } from 'lucide-react-native';
 import { useTheme } from '@/hooks/useTheme';
@@ -211,6 +211,7 @@ export default function CreateBoardScreen() {
   };
 
   return (
+    <SafeAreaProvider>
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top', 'bottom']}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         {/* Header */}
@@ -343,5 +344,6 @@ export default function CreateBoardScreen() {
         initialSelected={selectedPinIds}
       />
     </SafeAreaView>
+    </SafeAreaProvider>
   );
 }
