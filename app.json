@@ -15,7 +15,7 @@
         "applinks:indieapp.vercel.app"
       ],
       "infoPlist": {
-        "NSUserTrackingUsageDescription": "This identifier will be used to deliver personalized ads to you.",
+        "NSUserTrackingUsageDescription": "This allows Indie to provide you with a personalized experience and relevant content.",
         "ITSAppUsesNonExemptEncryption": false
       }
     },
@@ -75,7 +75,8 @@
         }
       ],
       "expo-image",
-      "expo-tracking-transparency"
+      "expo-tracking-transparency",
+      "expo-apple-authentication"
     ],
     "experiments": {
       "typedRoutes": true

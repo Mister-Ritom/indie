@@ -76,7 +76,7 @@ export default function TabLayout() {
             ios: TAB_BAR_HEIGHT,
             android: TAB_BAR_HEIGHT + 8,
           }),
-          // backgroundColor: "rgba(255,0,0,0.6)", // for debug
+          backgroundColor: "rgba(255,0,0,0.6)", // for debug
         }}
         accessibilityLabel="Create"
         accessibilityRole="button"

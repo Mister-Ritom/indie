@@ -13,6 +13,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Mail, Lock, User, AtSign } from "lucide-react-native";
 import * as WebBrowser from "expo-web-browser";
 import * as AuthSession from "expo-auth-session";
+import * as AppleAuthentication from 'expo-apple-authentication';
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme } from "@/hooks/useTheme";
 import { Input } from "@/components/ui/Input";
@@ -21,6 +22,7 @@ import { supabase } from "@/lib/supabase/client";
 import { signUpSchema, type SignUpForm } from "@/utils/validators";
 import { usernameFromName } from "@/utils/formatters";
 import LogoCard from "@/components/ui/LogoCard";
+import GoogleIcon from "@/components/ui/GoogleIcon";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -100,6 +102,31 @@ export default function SignupScreen() {
       setError(e.message ?? "Google sign-in failed");
     }
     setGoogleLoading(false);
+  };
+
+  const handleAppleSignIn = async () => {
+    setError(null);
+    try {
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+      });
+      if (credential.identityToken) {
+        const { error: oauthError } = await supabase.auth.signInWithIdToken({
+          provider: 'apple',
+          token: credential.identityToken,
+        });
+        if (oauthError) throw oauthError;
+      } else {
+        throw new Error('No identityToken.');
+      }
+    } catch (e: any) {
+      if (e.code !== 'ERR_REQUEST_CANCELED') {
+        setError(e.message ?? 'Apple sign-in failed');
+      }
+    }
   };
   if (success) {
     return (
@@ -197,7 +224,7 @@ export default function SignupScreen() {
                 opacity: googleLoading ? 0.6 : 1,
               }}
             >
-              <Text style={{ fontSize: 18 }}>🌐</Text>
+              <GoogleIcon size={22} />
               <Text
                 style={{
                   fontFamily: typography.families.bodyMedium,
@@ -208,6 +235,34 @@ export default function SignupScreen() {
                 Sign up with Google
               </Text>
             </TouchableOpacity>
+
+            {/* Apple Sign In */}
+            {Platform.OS === 'ios' && (
+              <TouchableOpacity
+                onPress={handleAppleSignIn}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: spacing.sm,
+                  backgroundColor: '#000',
+                  borderRadius: radius.pill,
+                  paddingVertical: 14,
+                  marginBottom: spacing.md,
+                }}
+              >
+                <Text style={{ fontSize: 22, color: '#FFF', marginBottom: 2 }}></Text>
+                <Text
+                  style={{
+                    fontFamily: typography.families.bodyMedium,
+                    fontSize: typography.scale.body,
+                    color: '#FFF',
+                  }}
+                >
+                  Sign up with Apple
+                </Text>
+              </TouchableOpacity>
+            )}
 
             <View
               style={{

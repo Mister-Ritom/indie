@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeft, Lock, User } from 'lucide-react-native';
+import { ArrowLeft, Lock, User, Shield, ChevronRight } from 'lucide-react-native';
 import { useTheme } from '@/hooks/useTheme';
 
 export default function PrivacySettingsScreen() {
@@ -104,6 +104,8 @@ export default function PrivacySettingsScreen() {
               alignItems: 'center',
               justifyContent: 'space-between',
               padding: spacing.md,
+              borderBottomWidth: 1,
+              borderBottomColor: colors.border,
             }}
           >
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
@@ -120,6 +122,31 @@ export default function PrivacySettingsScreen() {
             </View>
             {renderToggle(activityVisible, () => setActivityVisible(!activityVisible))}
           </View>
+
+          {/* Test Tracking Prompt Row */}
+          <TouchableOpacity
+            onPress={() => router.push('/(onboarding)/tracking-pre-prompt')}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: spacing.md,
+            }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+              <Shield size={20} color={colors.icon} />
+              <Text
+                style={{
+                  fontFamily: typography.families.bodyMedium,
+                  fontSize: typography.scale.bodyLarge,
+                  color: colors.text,
+                }}
+              >
+                Test Tracking Prompt
+              </Text>
+            </View>
+            <ChevronRight size={16} color={colors.textSecondary} />
+          </TouchableOpacity>
         </View>
       </View>
     </SafeAreaView>
