@@ -1,15 +1,11 @@
 import { useRef, useState } from "react";
-import { View, Platform, Dimensions } from "react-native";
+import { View } from "react-native";
 import { NativeTabs } from "expo-router/unstable-native-tabs";
 import { useNotifications } from "@/hooks/useNotifications";
 import * as Haptics from "expo-haptics";
 import { CreateMenuModal } from "@/components/CreateMenuModal";
 
-const TAB_COUNT = 5;
-const CREATE_TAB_INDEX = 2;
 export default function TabLayout() {
-  const screenWidth = Dimensions.get("window").width;
-  const tabWidth = screenWidth / TAB_COUNT;
   const isNavigating = useRef(false);
   const [isCreateModalVisible, setCreateModalVisible] = useState(false);
 
@@ -22,8 +18,6 @@ export default function TabLayout() {
       isNavigating.current = false;
     }, 500);
   };
-
-  const TAB_BAR_HEIGHT = Platform.OS === "ios" ? 83 : 56;
 
   const { unreadCount } = useNotifications();
 
@@ -41,8 +35,8 @@ export default function TabLayout() {
           <NativeTabs.Trigger.Icon sf="magnifyingglass" md="search" />
         </NativeTabs.Trigger>
 
-        <NativeTabs.Trigger 
-          name="create" 
+        <NativeTabs.Trigger
+          name="create"
           disabled
           listeners={{ tabPress: handleCreatePress }}
         >
