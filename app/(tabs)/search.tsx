@@ -30,7 +30,7 @@ import { router, useLocalSearchParams } from "expo-router";
 export default function SearchScreen() {
   const { colors, spacing, typography, radius } = useTheme();
   const { width } = useWindowDimensions();
-  const { showSidebar, masonryCols, grid } = useBreakpoint();
+  const { showSidebar, masonryCols, grid, isWeb } = useBreakpoint();
   const { q } = useLocalSearchParams<{ q?: string }>();
   const insets = useSafeAreaInsets();
 
@@ -142,7 +142,7 @@ export default function SearchScreen() {
       style={{ flex: 1, backgroundColor: colors.background }}
       edges={showSidebar ? ["top", "bottom"] : ["top"]}
     >
-      <View style={{ flex: 1, paddingTop: showSidebar ? 0 : 80 }}>
+      <View style={{ flex: 1, paddingTop: (showSidebar && isWeb) ? 0 : 80 }}>
         {!debouncedQuery ? (
           <DiscoveryFeed onSavePin={setSavingPin} />
         ) : isLoading ? (
@@ -253,8 +253,8 @@ export default function SearchScreen() {
         )}
       </View>
 
-      {!showSidebar && (
-        <View style={{ position: 'absolute', top: (insets.top || 0) + spacing.md, left: spacing.md, right: spacing.md, zIndex: 10 }}>
+      {!(showSidebar && isWeb) && (
+        <View style={{ position: 'absolute', top: (insets.top || 0) + spacing.md, left: spacing.md, right: spacing.md, zIndex: 10, maxWidth: 800, alignSelf: 'center', width: '100%' }}>
           <View
             style={{
               flexDirection: 'row',

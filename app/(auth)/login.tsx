@@ -137,8 +137,8 @@ export default function LoginScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* This wrapper keeps the form contained and centered on desktop */}
-          <View style={{ width: "100%", maxWidth: 420, alignSelf: "center" }}>
+          {/* This wrapper keeps the form contained and centered on desktop/iPad */}
+          <View style={{ width: "100%", maxWidth: 540, alignSelf: "center" }}>
             <View style={{ alignItems: "center", marginBottom: spacing.lg }}>
               <LogoCard width={120} height={120} />
               <View

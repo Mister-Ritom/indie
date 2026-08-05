@@ -123,7 +123,7 @@ export default function ForgotPasswordScreen() {
           showsVerticalScrollIndicator={false}
         >
           {/* Main content wrapper to cleanly contain and center the form on web/desktop */}
-          <View style={{ width: "100%", maxWidth: 420, alignSelf: "center" }}>
+          <View style={{ width: "100%", maxWidth: 540, alignSelf: "center" }}>
             {/* Back Button - Kept relative to the card wrapper so it doesn't drift away on wide screens */}
             <TouchableOpacity
               onPress={() => router.canGoBack() ? router.back() : router.replace('/')}

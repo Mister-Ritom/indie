@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { View, Platform, Dimensions, Pressable } from "react-native";
+import { View, Platform, Dimensions } from "react-native";
 import { NativeTabs } from "expo-router/unstable-native-tabs";
 import { useNotifications } from "@/hooks/useNotifications";
 import * as Haptics from "expo-haptics";
@@ -41,7 +41,11 @@ export default function TabLayout() {
           <NativeTabs.Trigger.Icon sf="magnifyingglass" md="search" />
         </NativeTabs.Trigger>
 
-        <NativeTabs.Trigger name="create" disabled>
+        <NativeTabs.Trigger 
+          name="create" 
+          disabled
+          listeners={{ tabPress: handleCreatePress }}
+        >
           <NativeTabs.Trigger.Label>Create</NativeTabs.Trigger.Label>
           <NativeTabs.Trigger.Icon sf="plus.circle.fill" md="add_circle" />
         </NativeTabs.Trigger>
@@ -61,26 +65,7 @@ export default function TabLayout() {
           <NativeTabs.Trigger.Icon sf="person.fill" md="person" />
         </NativeTabs.Trigger>
       </NativeTabs>
-      {/* Transparent overlay exactly covering the Create tab button */}
-      <Pressable
-        onPress={handleCreatePress}
-        style={{
-          position: "absolute",
-          bottom: Platform.select({ ios: 0, android: 32 }),
-          left: tabWidth * CREATE_TAB_INDEX,
-          width: Platform.select({
-            ios: tabWidth - 16,
-            android: tabWidth,
-          }),
-          height: Platform.select({
-            ios: TAB_BAR_HEIGHT,
-            android: TAB_BAR_HEIGHT + 8,
-          }),
-          backgroundColor: "rgba(255,0,0,0.6)", // for debug
-        }}
-        accessibilityLabel="Create"
-        accessibilityRole="button"
-      />
+
       <CreateMenuModal
         visible={isCreateModalVisible}
         onClose={() => setCreateModalVisible(false)}

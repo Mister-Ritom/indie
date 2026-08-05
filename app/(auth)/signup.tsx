@@ -192,7 +192,7 @@ export default function SignupScreen() {
           showsVerticalScrollIndicator={false}
         >
           {/* Main content wrapper constraint */}
-          <View style={{ width: "100%", maxWidth: 420, alignSelf: "center" }}>
+          <View style={{ width: "100%", maxWidth: 540, alignSelf: "center" }}>
             <View style={{ alignItems: "center", marginBottom: spacing.md }}>
               <LogoCard width={120} height={120} />
               <Text

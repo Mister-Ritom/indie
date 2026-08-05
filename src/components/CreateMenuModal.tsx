@@ -78,6 +78,8 @@ const AnimatedSafeAreaView = Animated.createAnimatedComponent(SafeAreaView);
 export function CreateMenuModal({ visible, onClose }: CreateMenuModalProps) {
   const { colors, spacing, typography, radius } = useTheme();
   const isWeb = Platform.OS === "web";
+  const isPad = Platform.OS === "ios" && Platform.isPad;
+  const isCentered = isWeb || isPad;
 
   const [internalVisible, setInternalVisible] = useState(visible);
   const translateY = useSharedValue(600);
@@ -119,8 +121,8 @@ export function CreateMenuModal({ visible, onClose }: CreateMenuModalProps) {
       <View
         style={{
           flex: 1,
-          justifyContent: "flex-end",
-          alignItems: isWeb ? "center" : "stretch",
+          justifyContent: isCentered ? "center" : "flex-end",
+          alignItems: isCentered ? "center" : "stretch",
         }}
       >
         {/* Dimmed backdrop — tap to dismiss */}
@@ -145,19 +147,18 @@ export function CreateMenuModal({ visible, onClose }: CreateMenuModalProps) {
 
         {/* Responsive Sheet / Modal Card */}
         <AnimatedSafeAreaView
-          edges={isWeb ? [] : ["bottom"]}
+          edges={isCentered ? [] : ["bottom"]}
           style={[
             {
               backgroundColor: colors.surfaceElevated,
               paddingTop: spacing.sm,
               paddingHorizontal: spacing.xl,
               paddingBottom: spacing.lg,
-              ...(isWeb
+              ...(isCentered
                 ? {
                     width: 440,
                     borderRadius: radius.xl,
                     boxShadow: "0px 10px 30px rgba(0, 0, 0, 0.2)",
-                    marginBottom: 20,
                   }
                 : {
                     borderTopLeftRadius: radius.xl,
@@ -167,8 +168,8 @@ export function CreateMenuModal({ visible, onClose }: CreateMenuModalProps) {
             sheetStyle,
           ]}
         >
-          {/* Drag handle — Only render on native layout */}
-          {!isWeb && (
+          {/* Drag handle — Only render on native layout when not centered */}
+          {!isCentered && (
             <View style={{ alignItems: "center", marginBottom: spacing.lg }}>
               <View
                 style={{
