@@ -8,6 +8,7 @@ import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { useAuthStore } from '@/stores/authStore';
 import { ProfileView } from '@/components/profile/ProfileView';
 import { supabase } from '@/lib/supabase/client';
+import { Button } from '@/components/ui/Button';
 
 export default function OtherUserProfileScreen() {
   const { username } = useLocalSearchParams<{ username: string }>();
@@ -60,7 +61,8 @@ export default function OtherUserProfileScreen() {
         </View>
       ) : error || !targetUserId ? (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ fontFamily: typography.families.body, fontSize: typography.scale.bodyLarge, color: colors.textSecondary }}>{error}</Text>
+          <Text style={{ fontFamily: typography.families.body, fontSize: typography.scale.bodyLarge, color: colors.textSecondary, marginBottom: spacing.md }}>{error}</Text>
+          <Button label="Go Back" onPress={() => router.canGoBack() ? router.back() : router.replace('/')} variant="primary" style={{ alignSelf: 'center' }} />
         </View>
       ) : (
         <ProfileView userId={targetUserId} isCurrentUser={user?.id === targetUserId} />

@@ -79,7 +79,8 @@ export default function BoardScreen() {
   if (!board) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center' }}>
-        <Text style={{ fontFamily: typography.families.body, fontSize: typography.scale.bodyLarge, color: colors.textSecondary }}>Board not found</Text>
+        <Text style={{ fontFamily: typography.families.body, fontSize: typography.scale.bodyLarge, color: colors.textSecondary, marginBottom: spacing.md }}>Board not found</Text>
+        <Button label="Go Back" onPress={() => router.canGoBack() ? router.back() : router.replace('/')} variant="primary" style={{ alignSelf: 'center' }} />
       </SafeAreaView>
     );
   }
