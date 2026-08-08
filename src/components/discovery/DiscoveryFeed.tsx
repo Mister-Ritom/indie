@@ -38,7 +38,13 @@ export function DiscoveryFeed({ onSavePin }: DiscoveryFeedProps) {
       isLoading={ideas.isLoading && ideas.pins.length === 0}
       isRefreshing={ideas.isRefreshing}
       isLoadingMore={ideas.isLoadingMore}
-      onRefresh={ideas.refresh}
+      onRefresh={async () => {
+        await Promise.all([
+          carousel.refresh(),
+          featured.refresh(),
+          ideas.refresh()
+        ]);
+      }}
       onEndReached={ideas.loadMore}
       onSavePin={onSavePin}
       ListHeaderComponent={Header}

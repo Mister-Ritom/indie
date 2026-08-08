@@ -8,64 +8,65 @@ export function useDiscoveryCarousel() {
   const [pins, setPins] = useState<FeedPin[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    async function fetchCarousel() {
-      if (!user) return;
-      setIsLoading(true);
+  const fetchCarousel = useCallback(async () => {
+    if (!user) return;
+    setIsLoading(true);
+    
+    try {
+      const { data: carouselIds, error: rpcError } = await supabase.rpc('get_discovery_carousel_pins', {
+        viewer_id: user.id,
+        page_limit: 6,
+      });
       
-      try {
-        const { data: carouselIds, error: rpcError } = await supabase.rpc('get_discovery_carousel_pins', {
-          viewer_id: user.id,
-          page_limit: 6,
-        });
-        
-        if (rpcError) throw rpcError;
-        
-        if (!carouselIds || carouselIds.length === 0) {
-          setPins([]);
-          setIsLoading(false);
-          return;
-        }
-
-        const ids = carouselIds.map(c => c.id);
-
-        const { data: pinsData, error: pinsError } = await supabase
-          .from('pins')
-          .select(`
-            *,
-            profile:user_id(id, username, avatar_url, full_name),
-            assets:pin_assets(*),
-            likes(user_id),
-            saves(user_id),
-            comments(id)
-          `)
-          .in('id', ids);
-
-        if (pinsError) throw pinsError;
-
-        // Maintain order from RPC
-        const sortedPinsData = ids.map(id => pinsData.find(p => p.id === id)).filter(Boolean);
-
-        const results = sortedPinsData.map((pin: any) => ({
-          ...pin,
-          likes_count: pin.likes?.length ?? 0,
-          saves_count: pin.saves?.length ?? 0,
-          comments_count: pin.comments?.length ?? 0,
-          is_liked: pin.likes?.some((l: any) => l.user_id === user.id) ?? false,
-          is_saved: pin.saves?.some((s: any) => s.user_id === user.id) ?? false,
-        })) as FeedPin[];
-        
-        setPins(results);
-      } catch (e) {
-        console.error('Error fetching discovery carousel:', e);
-      } finally {
+      if (rpcError) throw rpcError;
+      
+      if (!carouselIds || carouselIds.length === 0) {
+        setPins([]);
         setIsLoading(false);
+        return;
       }
+
+      const ids = carouselIds.map(c => c.id);
+
+      const { data: pinsData, error: pinsError } = await supabase
+        .from('pins')
+        .select(`
+          *,
+          profile:user_id(id, username, avatar_url, full_name),
+          assets:pin_assets(*),
+          likes(user_id),
+          saves(user_id),
+          comments(id)
+        `)
+        .in('id', ids);
+
+      if (pinsError) throw pinsError;
+
+      // Maintain order from RPC
+      const sortedPinsData = ids.map(id => pinsData.find(p => p.id === id)).filter(Boolean);
+
+      const results = sortedPinsData.map((pin: any) => ({
+        ...pin,
+        likes_count: pin.likes?.length ?? 0,
+        saves_count: pin.saves?.length ?? 0,
+        comments_count: pin.comments?.length ?? 0,
+        is_liked: pin.likes?.some((l: any) => l.user_id === user.id) ?? false,
+        is_saved: pin.saves?.some((s: any) => s.user_id === user.id) ?? false,
+      })) as FeedPin[];
+      
+      setPins(results);
+    } catch (e) {
+      console.error('Error fetching discovery carousel:', e);
+    } finally {
+      setIsLoading(false);
     }
-    fetchCarousel();
   }, [user]);
 
-  return { pins, isLoading };
+  useEffect(() => {
+    fetchCarousel();
+  }, [fetchCarousel]);
+
+  return { pins, isLoading, refresh: fetchCarousel };
 }
 
 export function useFeaturedBoards() {
@@ -73,64 +74,65 @@ export function useFeaturedBoards() {
   const [boards, setBoards] = useState<BoardWithPins[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    async function fetchBoards() {
-      if (!user) return;
-      setIsLoading(true);
-      
-      try {
-        const { data: boardIds, error: rpcError } = await supabase.rpc('get_featured_boards', {
-          viewer_id: user.id,
-          page_limit: 10,
-        });
+  const fetchBoards = useCallback(async () => {
+    if (!user) return;
+    setIsLoading(true);
+    
+    try {
+      const { data: boardIds, error: rpcError } = await supabase.rpc('get_featured_boards', {
+        viewer_id: user.id,
+        page_limit: 10,
+      });
 
-        if (rpcError) throw rpcError;
+      if (rpcError) throw rpcError;
 
-        if (!boardIds || boardIds.length === 0) {
-          setBoards([]);
-          setIsLoading(false);
-          return;
-        }
-
-        const ids = boardIds.map(b => b.id);
-
-        const { data: boardsData, error: boardsError } = await supabase
-          .from('boards')
-          .select(`
-            *,
-            profile:user_id(id, username, avatar_url, full_name),
-            saves(pin:pin_id(*, assets:pin_assets(*)))
-          `)
-          .in('id', ids);
-
-        if (boardsError) throw boardsError;
-
-        // Maintain order from RPC
-        const sortedBoardsData = ids.map(id => boardsData.find(b => b.id === id)).filter(Boolean);
-
-        const transformedBoards = sortedBoardsData.map((b: any) => {
-          // Each save row has shape { pin: PinObject } — unwrap
-          const boardPins = (b.saves ?? [])
-            .map((s: any) => s.pin)
-            .filter(Boolean);
-          return {
-            ...b,
-            pins_count: boardPins.length,
-            pins: boardPins,
-          };
-        });
-        
-        setBoards(transformedBoards);
-      } catch (e) {
-        console.error('Error fetching featured boards:', e);
-      } finally {
+      if (!boardIds || boardIds.length === 0) {
+        setBoards([]);
         setIsLoading(false);
+        return;
       }
+
+      const ids = boardIds.map(b => b.id);
+
+      const { data: boardsData, error: boardsError } = await supabase
+        .from('boards')
+        .select(`
+          *,
+          profile:user_id(id, username, avatar_url, full_name),
+          saves(pin:pin_id(*, assets:pin_assets(*)))
+        `)
+        .in('id', ids);
+
+      if (boardsError) throw boardsError;
+
+      // Maintain order from RPC
+      const sortedBoardsData = ids.map(id => boardsData.find(b => b.id === id)).filter(Boolean);
+
+      const transformedBoards = sortedBoardsData.map((b: any) => {
+        // Each save row has shape { pin: PinObject } — unwrap
+        const boardPins = (b.saves ?? [])
+          .map((s: any) => s.pin)
+          .filter(Boolean);
+        return {
+          ...b,
+          pins_count: boardPins.length,
+          pins: boardPins,
+        };
+      });
+      
+      setBoards(transformedBoards);
+    } catch (e) {
+      console.error('Error fetching featured boards:', e);
+    } finally {
+      setIsLoading(false);
     }
-    fetchBoards();
   }, [user]);
 
-  return { boards, isLoading };
+  useEffect(() => {
+    fetchBoards();
+  }, [fetchBoards]);
+
+  return { boards, isLoading, refresh: fetchBoards };
 }
 
 const PAGE_SIZE = 20;
