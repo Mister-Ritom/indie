@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ShieldCheck } from 'lucide-react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '@/hooks/useTheme';
 import { Button } from '@/components/ui/Button';
 import { requestTrackingPermission } from '@/utils/tracking';
@@ -14,7 +15,13 @@ export default function TrackingPrePromptScreen() {
   const handleContinue = async () => {
     setIsLoading(true);
     await requestTrackingPermission();
+    await AsyncStorage.setItem('has_seen_tracking_preprompt', 'true');
     setIsLoading(false);
+    router.replace('/(tabs)/');
+  };
+
+  const handleDismiss = async () => {
+    await AsyncStorage.setItem('has_seen_tracking_preprompt', 'true');
     router.replace('/(tabs)/');
   };
 
@@ -54,7 +61,7 @@ export default function TrackingPrePromptScreen() {
             fullWidth
           />
           <TouchableOpacity 
-            onPress={() => router.replace('/(tabs)/')}
+            onPress={handleDismiss}
             style={{ marginTop: spacing.lg, alignItems: 'center', paddingVertical: spacing.sm }}
             disabled={isLoading}
           >
