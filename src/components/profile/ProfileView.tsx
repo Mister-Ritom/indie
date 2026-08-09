@@ -139,12 +139,35 @@ export function ProfileView({ userId, isCurrentUser }: ProfileViewProps) {
     // Fetch created pins
     const { data: pinsData } = await supabase
       .from("pins")
-      .select(
-        "*, profile:user_id(id, username, avatar_url, full_name), assets:pin_assets(*)",
-      )
+      .select(`
+        *, 
+        profile:user_id(id, username, avatar_url, full_name), 
+        assets:pin_assets(*),
+        likes(user_id),
+        saves(user_id),
+        comments(id)
+      `)
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
-    setPins(pinsData ?? []);
+    
+    const formattedPins = (pinsData ?? []).map((pin) => {
+      const likes = pin.likes as { user_id: string }[] | null;
+      const saves = pin.saves as { user_id: string }[] | null;
+      const comments = pin.comments as { id: string }[] | null;
+
+      return {
+        ...pin,
+        profile: Array.isArray(pin.profile) ? pin.profile[0] : pin.profile,
+        assets: pin.assets || [],
+        likes_count: likes?.length ?? 0,
+        saves_count: saves?.length ?? 0,
+        comments_count: comments?.length ?? 0,
+        is_liked: user ? (likes?.some(l => l.user_id === user.id) ?? false) : false,
+        is_saved: user ? (saves?.some(s => s.user_id === user.id) ?? false) : false,
+      } as FeedPin;
+    });
+    
+    setPins(formattedPins);
 
     // Fetch boards
     const { data: boardsData } = await supabase

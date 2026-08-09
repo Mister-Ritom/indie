@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { View, Pressable } from "react-native";
-import { Tabs, router, usePathname } from "expo-router";
+import { Tabs, usePathname } from "expo-router";
 import { Home, Search, PlusCircle, Bell, User } from "lucide-react-native";
 import { useTheme } from "@/hooks/useTheme";
 import { useBreakpoint } from "@/hooks/useBreakpoint";

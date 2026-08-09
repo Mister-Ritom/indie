@@ -93,7 +93,6 @@ export default function ManageInterestsScreen() {
           numColumns={2}
           masonry={true}
           keyExtractor={(item) => item.id}
-          estimatedItemSize={200}
           contentContainerStyle={{ padding: spacing.xl, paddingBottom: 100 }}
           ListHeaderComponent={
             <View style={{ marginBottom: spacing.xl }}>

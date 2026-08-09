@@ -940,7 +940,8 @@ export default function DeleteAccountScreen() {
     try {
       const { data, error } = await supabase.rpc("request_account_deletion");
       if (error) throw error;
-      setScheduledAt(data.scheduled_at);
+      const responseData = data as { scheduled_at?: string };
+      setScheduledAt(responseData?.scheduled_at ?? null);
     } catch (err: any) {
       const msg = err.message ?? "Something went wrong. Please try again.";
       if (Platform.OS === "web") window.alert(msg);
@@ -955,7 +956,8 @@ export default function DeleteAccountScreen() {
     try {
       const { data, error } = await supabase.rpc("cancel_account_deletion");
       if (error) throw error;
-      if (data.cancelled) {
+      const responseData = data as { cancelled?: boolean };
+      if (responseData?.cancelled) {
         setScheduledAt(null);
         setStep("overview");
         scrollTop();

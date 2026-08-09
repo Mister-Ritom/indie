@@ -2,7 +2,6 @@ import { useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { useAuthStore } from "@/stores/authStore";
 import { useNotificationStore } from "@/stores/notificationStore";
-import type { Notification } from "@/types/database";
 
 export function useNotifications() {
   const { user } = useAuthStore();

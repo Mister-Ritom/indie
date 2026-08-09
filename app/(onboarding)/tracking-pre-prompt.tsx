@@ -17,12 +17,12 @@ export default function TrackingPrePromptScreen() {
     await requestTrackingPermission();
     await AsyncStorage.setItem('has_seen_tracking_preprompt', 'true');
     setIsLoading(false);
-    router.replace('/(tabs)/');
+    router.replace('/(tabs)');
   };
 
   const handleDismiss = async () => {
     await AsyncStorage.setItem('has_seen_tracking_preprompt', 'true');
-    router.replace('/(tabs)/');
+    router.replace('/(tabs)');
   };
 
   return (

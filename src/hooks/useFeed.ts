@@ -32,7 +32,7 @@ export function useFeed() {
           return;
         }
 
-        const ids = feedIds.map((f: any) => f.id);
+        const ids = (feedIds as { id: string }[]).map((f) => f.id);
 
         const { data: pinsData, error: pinsError } = await supabase
           .from('pins')
@@ -49,16 +49,24 @@ export function useFeed() {
         if (pinsError) throw pinsError;
 
         // Ensure order matches the RPC's score sorting
-        const sortedPinsData = ids.map(id => pinsData.find(p => p.id === id)).filter(Boolean);
+        const sortedPinsData = pinsData.sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));
 
-        const results = sortedPinsData.map((pin: any) => ({
-          ...pin,
-          likes_count: pin.likes?.length ?? 0,
-          saves_count: pin.saves?.length ?? 0,
-          comments_count: pin.comments?.length ?? 0,
-          is_liked: pin.likes?.some((l: any) => l.user_id === user.id) ?? false,
-          is_saved: pin.saves?.some((s: any) => s.user_id === user.id) ?? false,
-        })) as FeedPin[];
+        const results = sortedPinsData.map((pin) => {
+          const likes = pin.likes as { user_id: string }[] | null;
+          const saves = pin.saves as { user_id: string }[] | null;
+          const comments = pin.comments as { id: string }[] | null;
+
+          return {
+            ...pin,
+            profile: Array.isArray(pin.profile) ? pin.profile[0] : pin.profile,
+            assets: pin.assets || [],
+            likes_count: likes?.length ?? 0,
+            saves_count: saves?.length ?? 0,
+            comments_count: comments?.length ?? 0,
+            is_liked: likes?.some((l) => l.user_id === user.id) ?? false,
+            is_saved: saves?.some((s) => s.user_id === user.id) ?? false,
+          } as FeedPin;
+        });
 
         if (replace) {
           setPins(results);
@@ -67,8 +75,8 @@ export function useFeed() {
         }
         setHasMore(feedIds.length === PAGE_SIZE);
         offsetRef.current = offset + feedIds.length;
-      } catch (e: any) {
-        setError(e.message ?? 'Failed to load feed');
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Failed to load feed');
       }
     },
     [user]

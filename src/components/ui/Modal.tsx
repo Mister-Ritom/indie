@@ -71,7 +71,7 @@ export function Modal({ visible, onClose, title, children, height = 'auto' }: Mo
         <TouchableWithoutFeedback onPress={onClose}>
           <Animated.View
             style={[
-              StyleSheet.absoluteFillObject,
+              StyleSheet.absoluteFill,
               { backgroundColor: 'rgba(0,0,0,0.5)' },
               backdropStyle,
             ]}

@@ -43,16 +43,24 @@ export function useDiscoveryCarousel() {
       if (pinsError) throw pinsError;
 
       // Maintain order from RPC
-      const sortedPinsData = ids.map(id => pinsData.find(p => p.id === id)).filter(Boolean);
+      const sortedPinsData = pinsData.sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));
 
-      const results = sortedPinsData.map((pin: any) => ({
-        ...pin,
-        likes_count: pin.likes?.length ?? 0,
-        saves_count: pin.saves?.length ?? 0,
-        comments_count: pin.comments?.length ?? 0,
-        is_liked: pin.likes?.some((l: any) => l.user_id === user.id) ?? false,
-        is_saved: pin.saves?.some((s: any) => s.user_id === user.id) ?? false,
-      })) as FeedPin[];
+      const results = sortedPinsData.map((pin) => {
+        const likes = pin.likes as { user_id: string }[] | null;
+        const saves = pin.saves as { user_id: string }[] | null;
+        const comments = pin.comments as { id: string }[] | null;
+
+        return {
+          ...pin,
+          profile: Array.isArray(pin.profile) ? pin.profile[0] : pin.profile,
+          assets: pin.assets || [],
+          likes_count: likes?.length ?? 0,
+          saves_count: saves?.length ?? 0,
+          comments_count: comments?.length ?? 0,
+          is_liked: likes?.some((l) => l.user_id === user.id) ?? false,
+          is_saved: saves?.some((s) => s.user_id === user.id) ?? false,
+        } as FeedPin;
+      });
       
       setPins(results);
     } catch (e) {
@@ -106,18 +114,19 @@ export function useFeaturedBoards() {
       if (boardsError) throw boardsError;
 
       // Maintain order from RPC
-      const sortedBoardsData = ids.map(id => boardsData.find(b => b.id === id)).filter(Boolean);
+      const sortedBoardsData = boardsData.sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));
 
-      const transformedBoards = sortedBoardsData.map((b: any) => {
+      const transformedBoards = sortedBoardsData.map((b) => {
         // Each save row has shape { pin: PinObject } — unwrap
-        const boardPins = (b.saves ?? [])
-          .map((s: any) => s.pin)
+        const boardPins = ((b.saves as any[]) ?? [])
+          .map((s) => s.pin)
           .filter(Boolean);
         return {
           ...b,
+          profile: Array.isArray(b.profile) ? b.profile[0] : b.profile,
           pins_count: boardPins.length,
           pins: boardPins,
-        };
+        } as BoardWithPins;
       });
       
       setBoards(transformedBoards);
@@ -181,16 +190,24 @@ export function useIdeasForYou() {
 
         if (pinsError) throw pinsError;
 
-        const sortedPinsData = ids.map(id => pinsData.find(p => p.id === id)).filter(Boolean);
+        const sortedPinsData = pinsData.sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));
 
-        const results = sortedPinsData.map((pin: any) => ({
-          ...pin,
-          likes_count: pin.likes?.length ?? 0,
-          saves_count: pin.saves?.length ?? 0,
-          comments_count: pin.comments?.length ?? 0,
-          is_liked: pin.likes?.some((l: any) => l.user_id === user.id) ?? false,
-          is_saved: pin.saves?.some((s: any) => s.user_id === user.id) ?? false,
-        })) as FeedPin[];
+        const results = sortedPinsData.map((pin) => {
+          const likes = pin.likes as { user_id: string }[] | null;
+          const saves = pin.saves as { user_id: string }[] | null;
+          const comments = pin.comments as { id: string }[] | null;
+
+          return {
+            ...pin,
+            profile: Array.isArray(pin.profile) ? pin.profile[0] : pin.profile,
+            assets: pin.assets || [],
+            likes_count: likes?.length ?? 0,
+            saves_count: saves?.length ?? 0,
+            comments_count: comments?.length ?? 0,
+            is_liked: likes?.some((l) => l.user_id === user.id) ?? false,
+            is_saved: saves?.some((s) => s.user_id === user.id) ?? false,
+          } as FeedPin;
+        });
 
         if (replace) {
           setPins(results);

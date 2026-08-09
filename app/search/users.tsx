@@ -87,7 +87,6 @@ export default function UsersSearchScreen() {
             data={users}
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => <UserListItem profile={item} />}
-            estimatedItemSize={70}
             onEndReached={fetchMore}
             onEndReachedThreshold={0.5}
             contentContainerStyle={{ paddingBottom: spacing.xxl }}

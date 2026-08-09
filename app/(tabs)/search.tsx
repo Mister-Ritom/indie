@@ -18,6 +18,7 @@ import {
 import { FlashList } from "@shopify/flash-list";
 import { useTheme } from "@/hooks/useTheme";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
+import { useAuthStore } from "@/stores/authStore";
 import { SaveBoardPicker } from "@/components/pins/SaveBoardPicker";
 import { DiscoveryFeed } from "@/components/discovery/DiscoveryFeed";
 import { PinCard } from "@/components/pins/PinCard";
@@ -33,6 +34,7 @@ export default function SearchScreen() {
   const { showSidebar, masonryCols, grid, isWeb } = useBreakpoint();
   const { q } = useLocalSearchParams<{ q?: string }>();
   const insets = useSafeAreaInsets();
+  const { user } = useAuthStore();
 
   const [query, setQuery] = useState(q || "");
   const [debouncedQuery, setDebouncedQuery] = useState(q || "");
@@ -105,14 +107,21 @@ export default function SearchScreen() {
       }
 
       if (pinsResponse.data && !pinsResponse.error) {
-        const pins = pinsResponse.data.map((d: any) => ({
-          ...d,
-          likes_count: d.likes?.[0]?.count ?? 0,
-          saves_count: d.saves?.[0]?.count ?? 0,
-          comments_count: d.comments?.[0]?.count ?? 0,
-          is_liked: false,
-          is_saved: false,
-        }));
+        const pins = pinsResponse.data.map((d) => {
+          const likes = d.likes as { user_id: string }[] | null;
+          const saves = d.saves as { user_id: string }[] | null;
+          const comments = d.comments as { id: string }[] | null;
+
+          return {
+            ...d,
+            profile: Array.isArray(d.profile) ? d.profile[0] : d.profile,
+            likes_count: likes?.length ?? 0,
+            saves_count: saves?.length ?? 0,
+            comments_count: comments?.length ?? 0,
+            is_liked: user ? (likes?.some(l => l.user_id === user.id) ?? false) : false,
+            is_saved: user ? (saves?.some(s => s.user_id === user.id) ?? false) : false,
+          } as FeedPin;
+        });
         setPinResults(pins);
       } else {
         setPinResults([]);

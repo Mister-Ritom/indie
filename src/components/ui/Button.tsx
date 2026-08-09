@@ -60,7 +60,7 @@ export function Button({
       borderWidth: 1.5,
       borderColor: colors.border,
     }),
-    ...(Platform.OS === 'web' && { cursor: disabled ? 'not-allowed' : 'pointer' }),
+    ...(Platform.OS === 'web' && !disabled && { cursor: 'pointer' }),
   };
 
   const labelStyles: TextStyle = {

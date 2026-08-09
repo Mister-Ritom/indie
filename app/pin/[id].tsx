@@ -198,7 +198,7 @@ export default function PinDetailScreen() {
   }
 
   const LayoutWrapper = isWeb && isLg ? View : React.Fragment;
-  const layoutProps = isWeb && isLg ? { style: { flexDirection: 'row' as const, flex: 1, height: '100%', alignItems: 'flex-start' as const } } : {};
+  const layoutProps = isWeb && isLg ? { style: { flexDirection: 'row' as const, flex: 1, height: '100%' as any, alignItems: 'flex-start' as const } } : {};
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top', 'bottom']}>
@@ -326,7 +326,7 @@ export default function PinDetailScreen() {
                         {comment.text}
                       </Text>
                       <Text style={{ fontFamily: typography.families.body, fontSize: typography.scale.caption, color: colors.textSecondary, marginTop: 4 }}>
-                        {timeAgo(comment.created_at)}
+                        {timeAgo(comment.created_at ?? '')}
                       </Text>
                     </View>
                   </View>
