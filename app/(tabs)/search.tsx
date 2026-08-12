@@ -263,7 +263,7 @@ export default function SearchScreen() {
       </View>
 
       {!(showSidebar && isWeb) && (
-        <View style={{ position: 'absolute', top: (insets.top || 0) + spacing.md, left: spacing.md, right: spacing.md, zIndex: 10, maxWidth: 800, alignSelf: 'center', width: '100%' }}>
+        <View style={{ position: 'absolute', top: (insets.top || 0) + spacing.md, left: spacing.md, right: spacing.md, zIndex: 10, maxWidth: 800, alignSelf: 'center' }}>
           <View
             style={{
               flexDirection: 'row',

@@ -5,7 +5,9 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   ImageBackground,
+  Platform,
 } from "react-native";
+import * as TrackingTransparency from 'expo-tracking-transparency';
 import { FlashList } from "@shopify/flash-list";
 import { BlurView } from "expo-blur";
 import { router } from "expo-router";
@@ -67,7 +69,16 @@ export default function InterestsScreen() {
 
     if (newProfile) setProfile(newProfile);
     setIsSaving(false);
-    router.replace("/(onboarding)/tracking-pre-prompt");
+
+    // Show the system ATT dialog directly on iOS — no custom pre-prompt
+    if (Platform.OS === 'ios') {
+      const { status } = await TrackingTransparency.getTrackingPermissionsAsync();
+      if (status === 'undetermined') {
+        await TrackingTransparency.requestTrackingPermissionsAsync();
+      }
+    }
+
+    router.replace("/(tabs)");
   };
 
   if (isLoading) {

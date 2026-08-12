@@ -123,30 +123,6 @@ export default function PrivacySettingsScreen() {
             {renderToggle(activityVisible, () => setActivityVisible(!activityVisible))}
           </View>
 
-          {/* Test Tracking Prompt Row */}
-          <TouchableOpacity
-            onPress={() => router.push('/(onboarding)/tracking-pre-prompt')}
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: spacing.md,
-            }}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
-              <Shield size={20} color={colors.icon} />
-              <Text
-                style={{
-                  fontFamily: typography.families.bodyMedium,
-                  fontSize: typography.scale.bodyLarge,
-                  color: colors.text,
-                }}
-              >
-                Test Tracking Prompt
-              </Text>
-            </View>
-            <ChevronRight size={16} color={colors.textSecondary} />
-          </TouchableOpacity>
         </View>
       </View>
     </SafeAreaView>

@@ -94,8 +94,6 @@ export function Modal({ visible, onClose, title, children, height = 'auto' }: Mo
             },
             sheetStyle,
           ]}
-          // Absorb touches on empty areas of the sheet so they don't fall through to the backdrop
-          onStartShouldSetResponder={() => true}
         >
           {/* Handle */}
           <View style={{ alignItems: 'center', paddingTop: spacing.sm }}>

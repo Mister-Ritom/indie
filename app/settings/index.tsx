@@ -640,11 +640,6 @@ export default function SettingsScreen() {
                     setActivityVisible((v) => !v),
                   )}
                 </View>
-                {renderRow(
-                  <Shield size={20} color={colors.icon} />,
-                  "Test Tracking Prompt",
-                  () => router.push("/(onboarding)/tracking-pre-prompt"),
-                )}
               </>,
             )}
           </View>

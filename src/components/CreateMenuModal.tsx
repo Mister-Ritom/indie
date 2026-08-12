@@ -82,19 +82,30 @@ export function CreateMenuModal({ visible, onClose }: CreateMenuModalProps) {
 
   const [internalVisible, setInternalVisible] = useState(visible);
   const translateY = useSharedValue(600);
+  const scale = useSharedValue(0.9);
   const opacity = useSharedValue(0);
 
   useEffect(() => {
     if (visible) {
       setInternalVisible(true);
       opacity.value = withTiming(1, { duration: 200 });
-      translateY.value = withTiming(0, { duration: 250 });
+      if (isCentered) {
+        // Scale + opacity for centered (iPad/web) layout
+        scale.value = withTiming(1, { duration: 250 });
+      } else {
+        // Slide up for bottom-sheet layout
+        translateY.value = withTiming(0, { duration: 250 });
+      }
       // Prefetch both routes so navigation is instant
       router.prefetch("/create/pin");
       router.prefetch("/create/board");
     } else {
       opacity.value = withTiming(0, { duration: 180 });
-      translateY.value = withTiming(600, { duration: 220 });
+      if (isCentered) {
+        scale.value = withTiming(0.9, { duration: 220 });
+      } else {
+        translateY.value = withTiming(600, { duration: 220 });
+      }
       const timeout = setTimeout(() => {
         setInternalVisible(false);
       }, 250);
@@ -106,9 +117,11 @@ export function CreateMenuModal({ visible, onClose }: CreateMenuModalProps) {
     opacity: opacity.value,
   }));
 
-  const sheetStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: translateY.value }],
-  }));
+  const sheetStyle = useAnimatedStyle(() => (
+    isCentered
+      ? { transform: [{ scale: scale.value }], opacity: opacity.value }
+      : { transform: [{ translateY: translateY.value }] }
+  ));
 
   return (
     <Modal
