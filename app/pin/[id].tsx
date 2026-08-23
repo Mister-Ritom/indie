@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform, TextInput, Share } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform, TextInput, Share, Alert } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { ArrowLeft, MoreHorizontal, Heart, Share as ShareIcon, ExternalLink, Flag, Ban } from 'lucide-react-native';
+import { ArrowLeft, MoreHorizontal, Heart, Share as ShareIcon, ExternalLink, Flag, Ban, AlertTriangle } from 'lucide-react-native';
+import { BlurView } from 'expo-blur';
 import * as WebBrowser from 'expo-web-browser';
 import { useTheme } from '@/hooks/useTheme';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
@@ -38,6 +39,8 @@ export default function PinDetailScreen() {
   const [isFollowing, setIsFollowing] = useState(false);
   const [showOptions, setShowOptions] = useState(false);
   const [showReport, setShowReport] = useState(false);
+  const [isReported, setIsReported] = useState(false);
+  const [hideReportOverlay, setHideReportOverlay] = useState(false);
   const hasViewedRef = useRef(false);
 
   useEffect(() => {
@@ -79,15 +82,26 @@ export default function PinDetailScreen() {
           supabase.from('pin_views').upsert({ user_id: user.id, pin_id: id }).then();
         }
 
-        // Check follow status
+        // Check follow + report status in parallel
         if (user && data.user_id !== user.id) {
-          const { data: followData } = await supabase
-            .from('follows')
-            .select('follower_id')
-            .eq('follower_id', user.id)
-            .eq('following_id', data.user_id)
-            .single();
-          setIsFollowing(!!followData);
+          const [followResult, reportResult] = await Promise.all([
+            supabase
+              .from('follows')
+              .select('follower_id')
+              .eq('follower_id', user.id)
+              .eq('following_id', data.user_id)
+              .maybeSingle(),
+            supabase
+              .from('pin_reports')
+              .select('id')
+              .eq('reporter_id', user.id)
+              .eq('pin_id', id)
+              .maybeSingle(),
+          ]);
+          if (isMounted) {
+            setIsFollowing(!!followResult.data);
+            setIsReported(!!reportResult.data);
+          }
         }
 
         // Fetch related pins (simplified: just matching same interest for now)
@@ -156,6 +170,15 @@ export default function PinDetailScreen() {
     setIsPostingComment(false);
   };
 
+  const handleReported = () => {
+    setIsReported(true);
+    // Navigate back after the success animation plays (ReportModal shows it for ~2.2s)
+    setTimeout(() => {
+      if (router.canGoBack()) router.back();
+      else router.replace('/');
+    }, 2300);
+  };
+
   if (isLoading) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center' }}>
@@ -210,14 +233,29 @@ export default function PinDetailScreen() {
           <View style={{ flexDirection: 'row', gap: spacing.sm }}>
             <Button label="Save" onPress={() => setShowSavePicker(true)} size="sm" />
             {user && user.id !== pin.user_id && (
-              <TouchableOpacity
-                onPress={() => setShowOptions(true)}
-                style={{ padding: 10, backgroundColor: colors.surface, borderRadius: radius.pill }}
-              >
-                <MoreHorizontal size={20} color={colors.icon} />
-              </TouchableOpacity>
+              <>
+                <TouchableOpacity
+                  onPress={() => !isReported && setShowReport(true)}
+                  style={{
+                    padding: 10,
+                    backgroundColor: isReported ? 'rgba(220,38,38,0.12)' : colors.surface,
+                    borderRadius: radius.pill,
+                  }}
+                  accessibilityLabel={isReported ? 'Already reported' : 'Report this pin'}
+                  accessibilityRole="button"
+                >
+                  <Flag size={20} color={isReported ? '#DC2626' : colors.icon} fill={isReported ? '#DC2626' : 'none'} />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => setShowOptions(true)}
+                  style={{ padding: 10, backgroundColor: colors.surface, borderRadius: radius.pill }}
+                >
+                  <MoreHorizontal size={20} color={colors.icon} />
+                </TouchableOpacity>
+              </>
             )}
           </View>
+
         </View>
 
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: spacing.xxl }}>
@@ -390,7 +428,81 @@ export default function PinDetailScreen() {
         onClose={() => setShowReport(false)}
         type="pin"
         targetId={pin.id}
+        onReported={handleReported}
       />
+
+      {/* Reported full-screen overlay */}
+      {isReported && !hideReportOverlay && (
+        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 999 }}>
+          <BlurView
+            intensity={Platform.OS === 'web' ? 70 : 90}
+            tint="dark"
+            style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+          />
+          <View
+            style={{
+              flex: 1,
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: spacing.xl,
+              gap: spacing.lg,
+            }}
+          >
+            <View
+              style={{
+                width: 64,
+                height: 64,
+                borderRadius: 32,
+                backgroundColor: 'rgba(220,38,38,0.15)',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: spacing.sm,
+              }}
+            >
+              <AlertTriangle size={32} color="#EF4444" />
+            </View>
+            
+            <Text
+              style={{
+                fontFamily: typography.families.headingBold,
+                fontSize: 24,
+                color: '#fff',
+                textAlign: 'center',
+              }}
+            >
+              You reported this pin
+            </Text>
+            
+            <Text
+              style={{
+                fontFamily: typography.families.body,
+                fontSize: typography.scale.bodyLarge,
+                color: 'rgba(255,255,255,0.75)',
+                textAlign: 'center',
+                maxWidth: 280,
+                lineHeight: 24,
+              }}
+            >
+              Our team will review it. The content is hidden while under review.
+            </Text>
+
+            <View style={{ marginTop: spacing.xl, flexDirection: 'row', gap: spacing.md, justifyContent: 'center' }}>
+              <Button 
+                label="Go Back" 
+                variant="primary"
+                size="lg"
+                onPress={() => router.canGoBack() ? router.back() : router.replace('/')} 
+              />
+              <Button 
+                label="Show Anyway" 
+                variant="secondary"
+                size="lg"
+                onPress={() => setHideReportOverlay(true)} 
+              />
+            </View>
+          </View>
+        </View>
+      )}
     </SafeAreaView>
   );
 }

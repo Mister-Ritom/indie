@@ -11,11 +11,10 @@
       "supportsTablet": true,
       "bundleIdentifier": "me.ritom.indie",
       "associatedDomains": [
-        "applinks:indieapp.vercel.app",
         "applinks:indieapp.vercel.app"
       ],
       "infoPlist": {
-        "NSUserTrackingUsageDescription": "This allows Indie to provide you with a personalized experience and relevant content.",
+        "NSUserTrackingUsageDescription": "Indie uses this to personalise your home feed and show you relevant creative content based on your interests. No data is sold to third parties.",
         "ITSAppUsesNonExemptEncryption": false
       }
     },

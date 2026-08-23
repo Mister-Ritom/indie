@@ -28,9 +28,11 @@ interface ReportModalProps {
   onClose: () => void;
   type: 'pin' | 'user';
   targetId: string;
+  /** Called after a report is successfully submitted (or if it was already reported). */
+  onReported?: () => void;
 }
 
-export function ReportModal({ visible, onClose, type, targetId }: ReportModalProps) {
+export function ReportModal({ visible, onClose, type, targetId, onReported }: ReportModalProps) {
   const { colors, spacing, typography, radius } = useTheme();
   const { user } = useAuthStore();
 
@@ -61,6 +63,13 @@ export function ReportModal({ visible, onClose, type, targetId }: ReportModalPro
     setIsSubmitting(false);
 
     if (error) {
+      if (error.code === '23505') {
+        // Already reported — show success state anyway
+        setSubmitted(true);
+        onReported?.();
+        setTimeout(handleClose, 2200);
+        return;
+      }
       if (Platform.OS === 'web') {
         window.alert('Something went wrong. Please try again.');
       } else {
@@ -70,6 +79,7 @@ export function ReportModal({ visible, onClose, type, targetId }: ReportModalPro
     }
 
     setSubmitted(true);
+    onReported?.();
     // Auto-close after a moment
     setTimeout(handleClose, 2200);
   };

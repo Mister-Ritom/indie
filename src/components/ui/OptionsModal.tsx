@@ -32,8 +32,10 @@ export function OptionsModal({ visible, onClose, items }: OptionsModalProps) {
             key={item.label}
             onPress={() => {
               onClose();
-              // Small delay so modal closes before next action opens
-              setTimeout(item.onPress, 200);
+              // Delay long enough for the close animation (250ms) to finish
+              // before the next modal opens — two RN Modals open simultaneously
+              // causes a UI freeze on iOS/Android.
+              setTimeout(item.onPress, 320);
             }}
             activeOpacity={0.7}
             style={[

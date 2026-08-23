@@ -117,8 +117,11 @@ export function PinCard({ pin, columnWidth, onSavePress }: PinCardProps) {
         const { error } = await supabase
           .from('user_blocks')
           .insert({ blocker_id: user.id, blocked_id: pin.user_id });
-        if (!error) {
+        if (!error || error.code === '23505') {
+          // Success or already blocked — hide the card either way
           setIsHidden(true);
+        } else {
+          Alert.alert('Error', 'Could not block this user. Please try again.');
         }
       },
       true
@@ -358,6 +361,7 @@ export function PinCard({ pin, columnWidth, onSavePress }: PinCardProps) {
         onClose={() => setShowReport(false)}
         type="pin"
         targetId={pin.id}
+        onReported={() => setIsHidden(true)}
       />
 
       {/* Save Board Picker */}

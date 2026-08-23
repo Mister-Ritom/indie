@@ -1,4 +1,9 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+} from "react-native-reanimated";
 import {
   View,
   Text,
@@ -7,6 +12,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Image, // Used both as a component and for Image.getSize
+  TextInput,
   useWindowDimensions,
 } from "react-native";
 import { SafeAreaView, SafeAreaProvider } from "react-native-safe-area-context";
@@ -28,6 +34,7 @@ import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { supabase } from "@/lib/supabase/client";
 import { useAuthStore } from "@/stores/authStore";
+import { useUploadStore } from "@/stores/uploadStore";
 import { createPinSchema, type CreatePinForm } from "@/utils/validators";
 import {
   requestMediaPermissions,
@@ -44,11 +51,11 @@ export default function CreatePinScreen() {
   const { showSidebar } = useBreakpoint();
   const { user } = useAuthStore();
   const { width: screenWidth } = useWindowDimensions();
+  const { addJob, updateJob, dismissJob } = useUploadStore();
 
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [imageWidth, setImageWidth] = useState(0);
   const [imageHeight, setImageHeight] = useState(0);
-  const [isUploading, setIsUploading] = useState(false);
   const [interests, setInterests] = useState<Interest[]>([]);
   const [boards, setBoards] = useState<Board[]>([]);
 
@@ -88,6 +95,18 @@ export default function CreatePinScreen() {
 
   const [showInterestPicker, setShowInterestPicker] = useState(false);
   const [showBoardPicker, setShowBoardPicker] = useState(false);
+  const [categorySearch, setCategorySearch] = useState("");
+
+  // Animated height for the category list so filtering doesn't flash
+  const listHeight = useSharedValue(0);
+  const listInitialized = useRef(false);
+  const animatedListStyle = useAnimatedStyle(() => {
+    if (listHeight.value === 0) return { overflow: "hidden" as const };
+    return {
+      height: listHeight.value,
+      overflow: "hidden" as const,
+    };
+  });
 
   const {
     control,
@@ -168,50 +187,75 @@ export default function CreatePinScreen() {
     }
   };
 
+  /** Poll until pin_assets has at least one row for the given pinId, or times out */
+  async function waitForPinAssets(pinId: string, timeoutMs = 30_000): Promise<boolean> {
+    const interval = 2000;
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      const { data } = await supabase
+        .from('pin_assets')
+        .select('id')
+        .eq('pin_id', pinId)
+        .limit(1);
+      if (data && data.length > 0) return true;
+      await new Promise((res) => setTimeout(res, interval));
+    }
+    return false;
+  }
+
   const onSubmit = async (data: CreatePinForm) => {
     if (!imageUri || !user) return;
-    setIsUploading(true);
 
-    try {
-      const isGif = imageUri.toLowerCase().endsWith(".gif");
-      const pinId = Crypto.randomUUID();
-      const path = `${user.id}/${pinId}`;
-      await uploadToStorage(
-        "pin-originals",
-        path,
-        imageUri,
-        isGif ? "image/gif" : "image/jpeg",
-      );
+    const isGif = imageUri.toLowerCase().endsWith(".gif");
+    const pinId = Crypto.randomUUID();
+    const displayTitle = data.title?.trim() || "Untitled pin";
 
-      const { data: pinData, error: pinError } = await supabase
-        .from("pins")
-        .insert({
-          id: pinId,
-          user_id: user.id,
-          board_id: data.board_id || null,
-          interest_id: data.interest_id,
-          title: data.title,
-          description: data.description,
-          link: data.link,
-          alt_text: data.alt_text,
-          media_type: isGif ? "gif" : "image",
-          width: imageWidth > 0 ? imageWidth : null,
-          height: imageHeight > 0 ? imageHeight : null,
-        })
-        .select()
-        .single();
+    // Register the job and navigate home immediately
+    addJob({ id: pinId, title: displayTitle, status: 'uploading' });
+    router.canGoBack() ? router.back() : router.replace('/');
 
-      if (pinError) throw pinError;
+    // Fire-and-forget background pipeline
+    (async () => {
+      try {
+        const path = `${user.id}/${pinId}`;
 
-      router.canGoBack() ? router.back() : router.replace('/');
-      setTimeout(() => {
-        router.push(`/pin/${pinData.id}`);
-      }, 150);
-    } catch (e: any) {
-      alert(e.message || "Failed to upload pin");
-    } finally {
-      setIsUploading(false);
-    }
+        // 1. Upload image to storage
+        await uploadToStorage(
+          "pin-originals",
+          path,
+          imageUri,
+          isGif ? "image/gif" : "image/jpeg",
+        );
+
+        // 2. Insert pin DB row
+        const { error: pinError } = await supabase
+          .from("pins")
+          .insert({
+            id: pinId,
+            user_id: user.id,
+            board_id: data.board_id || null,
+            interest_id: data.interest_id,
+            title: data.title,
+            description: data.description,
+            link: data.link,
+            alt_text: data.alt_text,
+            media_type: isGif ? "gif" : "image",
+            width: imageWidth > 0 ? imageWidth : null,
+            height: imageHeight > 0 ? imageHeight : null,
+          });
+
+        if (pinError) throw pinError;
+
+        // 3. Wait for pin_assets to be generated (server-side trigger)
+        await waitForPinAssets(pinId);
+
+        // 4. Mark done and auto-dismiss after 3 s
+        updateJob(pinId, { status: 'done' });
+        setTimeout(() => dismissJob(pinId), 3000);
+      } catch (e: any) {
+        updateJob(pinId, { status: 'error', error: e?.message ?? 'Upload failed' });
+      }
+    })();
   };
 
   const isWebDesktop = Platform.OS === "web" && showSidebar;
@@ -549,8 +593,7 @@ export default function CreatePinScreen() {
               <Button
                 label="Publish"
                 onPress={handleSubmit(onSubmit)}
-                disabled={!imageUri || isUploading}
-                isLoading={isUploading}
+                disabled={!imageUri}
                 fullWidth
                 size="lg"
                 style={{ marginTop: spacing.lg }}
@@ -563,33 +606,89 @@ export default function CreatePinScreen() {
       {/* Interest Picker Modal */}
       <Modal
         visible={showInterestPicker}
-        onClose={() => setShowInterestPicker(false)}
+        onClose={() => {
+          setShowInterestPicker(false);
+          setCategorySearch("");
+        }}
         title="Select Category"
       >
-        {interests.map((interest) => (
-          <TouchableOpacity
-            key={interest.id}
-            onPress={() => {
-              setValue("interest_id", interest.id, { shouldValidate: true });
-              setShowInterestPicker(false);
-            }}
+        {/* Search bar */}
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            backgroundColor: colors.inputBg,
+            borderRadius: radius.lg,
+            borderWidth: 1.5,
+            borderColor: colors.inputBorder,
+            paddingHorizontal: spacing.md,
+            marginBottom: spacing.md,
+          }}
+        >
+          <TextInput
+            placeholder="Search categories..."
+            placeholderTextColor={colors.textTertiary}
+            value={categorySearch}
+            onChangeText={setCategorySearch}
+            autoCorrect={false}
             style={{
-              paddingVertical: spacing.md,
-              borderBottomWidth: 1,
-              borderBottomColor: colors.border,
+              flex: 1,
+              paddingVertical: 10,
+              fontFamily: typography.families.body,
+              fontSize: typography.scale.body,
+              color: colors.text,
+            }}
+          />
+          {categorySearch.length > 0 && (
+            <TouchableOpacity onPress={() => setCategorySearch("")}>
+              <X size={16} color={colors.iconMuted} />
+            </TouchableOpacity>
+          )}
+        </View>
+
+        <Animated.View style={animatedListStyle}>
+          <View
+            onLayout={(e) => {
+              const h = e.nativeEvent.layout.height;
+              if (!listInitialized.current) {
+                listHeight.value = h;
+                listInitialized.current = true;
+              } else {
+                listHeight.value = withTiming(h, { duration: 220 });
+              }
             }}
           >
-            <Text
-              style={{
-                fontFamily: typography.families.bodyMedium,
-                fontSize: typography.scale.body,
-                color: colors.text,
-              }}
-            >
-              {interest.name}
-            </Text>
-          </TouchableOpacity>
-        ))}
+            {interests
+              .filter((i) =>
+                i.name.toLowerCase().includes(categorySearch.toLowerCase())
+              )
+              .map((interest) => (
+                <TouchableOpacity
+                  key={interest.id}
+                  onPress={() => {
+                    setValue("interest_id", interest.id, { shouldValidate: true });
+                    setShowInterestPicker(false);
+                    setCategorySearch("");
+                  }}
+                  style={{
+                    paddingVertical: spacing.md,
+                    borderBottomWidth: 1,
+                    borderBottomColor: colors.border,
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontFamily: typography.families.bodyMedium,
+                      fontSize: typography.scale.body,
+                      color: colors.text,
+                    }}
+                  >
+                    {interest.name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+          </View>
+        </Animated.View>
       </Modal>
 
       {/* Board Picker Modal */}

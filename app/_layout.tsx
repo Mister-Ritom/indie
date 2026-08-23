@@ -22,6 +22,7 @@ import { supabase } from "@/lib/supabase/client";
 import { useAuthStore } from "@/stores/authStore";
 import { useThemeStore } from "@/stores/themeStore";
 import { useTheme } from "@/hooks/useTheme";
+import { UploadBanner } from "@/components/ui/UploadBanner";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -217,6 +218,7 @@ function RootLayoutInner() {
         />
         <Stack.Screen name="+not-found" />
       </Stack>
+      <UploadBanner />
     </>
   );
 }

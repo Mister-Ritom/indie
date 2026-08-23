@@ -8,10 +8,13 @@ import {
   RefreshControl,
   useWindowDimensions,
   ActivityIndicator,
+  Alert,
 } from "react-native";
 import { Image } from "expo-image";
+import { LinearGradient } from "expo-linear-gradient";
+import { BlurView } from 'expo-blur';
 import { router } from "expo-router";
-import { Settings, Share as ShareIcon, MoreHorizontal, Ban, ShieldOff, Flag } from "lucide-react-native";
+import { Settings, Check, LogOut, Grid, Bookmark, Flag, ShieldOff, Ban, AlertTriangle, Share as ShareIcon, MoreHorizontal } from "lucide-react-native";
 import { useTheme } from "@/hooks/useTheme";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 import { Avatar } from "@/components/ui/Avatar";
@@ -23,6 +26,7 @@ import { formatCount } from "@/utils/formatters";
 import { confirmAction } from "@/utils/alerts";
 import { supabase } from "@/lib/supabase/client";
 import { useAuthStore } from "@/stores/authStore";
+import { useUploadStore } from "@/stores/uploadStore";
 import type { ProfileWithStats, FeedPin, Board } from "@/types/database";
 
 interface ProfileViewProps {
@@ -59,6 +63,8 @@ export function ProfileView({ userId, isCurrentUser }: ProfileViewProps) {
   const [isBlocked, setIsBlocked] = useState(false);
   const [showOptions, setShowOptions] = useState(false);
   const [showReport, setShowReport] = useState(false);
+  const [isReported, setIsReported] = useState(false);
+  const [hideReportOverlay, setHideReportOverlay] = useState(false);
 
   const fetchProfile = useCallback(
     async (background = false) => {
@@ -113,15 +119,25 @@ export function ProfileView({ userId, isCurrentUser }: ProfileViewProps) {
           is_following: !!isFollowing.data,
         });
 
-        // Fetch block status
+        // Fetch block & report status
         if (user && !isCurrentUser) {
-          const { data: blockData } = await supabase
-            .from('user_blocks')
-            .select('blocked_id')
-            .eq('blocker_id', user.id)
-            .eq('blocked_id', userId)
-            .single();
-          setIsBlocked(!!blockData);
+          const [blockResult, reportResult] = await Promise.all([
+            supabase
+              .from('user_blocks')
+              .select('blocked_id')
+              .eq('blocker_id', user.id)
+              .eq('blocked_id', userId)
+              .maybeSingle(),
+            supabase
+              .from('user_reports')
+              .select('id')
+              .eq('reporter_id', user.id)
+              .eq('reported_id', userId)
+              .maybeSingle()
+          ]);
+          
+          setIsBlocked(!!blockResult.data);
+          setIsReported(!!reportResult.data);
         }
       }
       if (!background) setIsLoading(false);
@@ -286,12 +302,16 @@ export function ProfileView({ userId, isCurrentUser }: ProfileViewProps) {
         'Unblock User',
         `Are you sure you want to unblock @${profile.username}?`,
         async () => {
-          await supabase
+          const { error } = await supabase
             .from('user_blocks')
             .delete()
             .eq('blocker_id', user.id)
             .eq('blocked_id', userId);
-          setIsBlocked(false);
+          if (error) {
+            Alert.alert('Error', 'Could not unblock this user. Please try again.');
+          } else {
+            setIsBlocked(false);
+          }
         }
       );
     } else {
@@ -299,10 +319,19 @@ export function ProfileView({ userId, isCurrentUser }: ProfileViewProps) {
         'Block User',
         `Are you sure you want to block @${profile.username}? They won't be able to see your pins.`,
         async () => {
-          await supabase
+          const { error } = await supabase
             .from('user_blocks')
             .insert({ blocker_id: user.id, blocked_id: userId });
-          setIsBlocked(true);
+          if (error) {
+            if (error.code === '23505') {
+              // Already blocked — treat as success and sync state
+              setIsBlocked(true);
+            } else {
+              Alert.alert('Error', 'Could not block this user. Please try again.');
+            }
+          } else {
+            setIsBlocked(true);
+          }
         },
         true
       );
@@ -310,6 +339,10 @@ export function ProfileView({ userId, isCurrentUser }: ProfileViewProps) {
   }, [user, isBlocked, userId, profile?.username]);
 
   const authProfile = useAuthStore((state) => state.profile);
+  const uploadJobs = useUploadStore((state) => state.jobs);
+  const skeletonCount = isCurrentUser
+    ? uploadJobs.filter((j) => j.status === 'uploading').length
+    : 0;
 
   if (!profile) {
     return (
@@ -612,6 +645,7 @@ export function ProfileView({ userId, isCurrentUser }: ProfileViewProps) {
               isRefreshing={isRefreshing}
               onRefresh={handleRefresh}
               scrollsToTop={activeTab === "created"}
+              skeletonCount={skeletonCount}
             />
           </View>
 
@@ -829,7 +863,92 @@ export function ProfileView({ userId, isCurrentUser }: ProfileViewProps) {
         onClose={() => setShowReport(false)}
         type="user"
         targetId={userId}
+        onReported={() => setIsReported(true)}
       />
+
+      {/* Blocked / Reported full-screen overlays */}
+      {(isBlocked || (isReported && !hideReportOverlay)) && (
+        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 999 }}>
+          <BlurView
+            intensity={90}
+            tint="dark"
+            style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+          />
+          <View
+            style={{
+              flex: 1,
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: spacing.xl,
+              gap: spacing.lg,
+            }}
+          >
+            <View
+              style={{
+                width: 64,
+                height: 64,
+                borderRadius: 32,
+                backgroundColor: 'rgba(220,38,38,0.15)',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: spacing.sm,
+              }}
+            >
+              <AlertTriangle size={32} color="#EF4444" />
+            </View>
+            
+            <Text
+              style={{
+                fontFamily: typography.families.headingBold,
+                fontSize: 24,
+                color: '#fff',
+                textAlign: 'center',
+              }}
+            >
+              {isBlocked ? "You blocked this user" : "You reported this user"}
+            </Text>
+            
+            <Text
+              style={{
+                fontFamily: typography.families.body,
+                fontSize: typography.scale.bodyLarge,
+                color: 'rgba(255,255,255,0.75)',
+                textAlign: 'center',
+                maxWidth: 280,
+                lineHeight: 24,
+              }}
+            >
+              {isBlocked 
+                ? "You won't see their content anymore."
+                : "Our team will review this profile. The content is hidden while under review."}
+            </Text>
+
+            <View style={{ marginTop: spacing.xl, flexDirection: 'row', gap: spacing.md, justifyContent: 'center' }}>
+              <Button 
+                label="Go Back" 
+                variant="primary"
+                size="lg"
+                onPress={() => router.canGoBack() ? router.back() : router.replace('/')} 
+              />
+              {isBlocked ? (
+                <Button 
+                  label="Unblock" 
+                  variant="secondary"
+                  size="lg"
+                  onPress={handleBlock} 
+                />
+              ) : (
+                <Button 
+                  label="Show Anyway" 
+                  variant="secondary"
+                  size="lg"
+                  onPress={() => setHideReportOverlay(true)} 
+                />
+              )}
+            </View>
+          </View>
+        </View>
+      )}
     </>
   );
 }

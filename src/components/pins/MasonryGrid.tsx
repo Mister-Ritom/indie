@@ -8,11 +8,16 @@ import {
 } from "react-native";
 import { FlashList } from "@shopify/flash-list";
 import { PinCard } from "./PinCard";
+import { SkeletonPinCard } from "./SkeletonPinCard";
 import { useTheme } from "@/hooks/useTheme";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 import { columnWidth } from "@/utils/imageVariants";
 import type { FeedPin } from "@/types/database";
 import { useSidebarStore } from "@/stores/sidebarStore";
+
+/** Sentinel item type for skeleton placeholders */
+type SkeletonItem = { _skeleton: true; _skeletonIndex: number; id: string };
+type GridItem = FeedPin | SkeletonItem;
 
 interface MasonryGridProps {
   pins: FeedPin[];
@@ -25,6 +30,8 @@ interface MasonryGridProps {
   ListHeaderComponent?: React.ReactElement;
   onSavePin?: (pin: FeedPin) => void;
   scrollsToTop?: boolean;
+  /** Number of skeleton placeholder cards to show at the top (e.g. active uploads) */
+  skeletonCount?: number;
 }
 
 export function MasonryGrid({
@@ -38,6 +45,7 @@ export function MasonryGrid({
   ListHeaderComponent,
   onSavePin,
   scrollsToTop = true,
+  skeletonCount = 0,
 }: MasonryGridProps) {
   const { colors, spacing, typography } = useTheme();
   const { width } = useWindowDimensions();
@@ -58,10 +66,21 @@ export function MasonryGrid({
 
   const colW = columnWidth(contentWidth, numCols, grid.gap, grid.contentPadding);
 
+  // Build data: skeleton sentinels first, then real pins
+  const skeletonItems: SkeletonItem[] = Array.from({ length: skeletonCount }, (_, i) => ({
+    _skeleton: true as const,
+    _skeletonIndex: i,
+    id: `__skeleton_${i}`,
+  }));
+  const gridData: GridItem[] = [...skeletonItems, ...pins];
+
   const renderItem = useCallback(
-    ({ item }: { item: FeedPin }) => (
-      <PinCard pin={item} columnWidth={colW} onSavePress={onSavePin} />
-    ),
+    ({ item }: { item: GridItem }) => {
+      if ('_skeleton' in item && item._skeleton) {
+        return <SkeletonPinCard columnWidth={colW} index={item._skeletonIndex} />;
+      }
+      return <PinCard pin={item as FeedPin} columnWidth={colW} onSavePress={onSavePin} />;
+    },
     [colW, onSavePin]
   );
 
@@ -92,7 +111,7 @@ export function MasonryGrid({
   return (
     <FlashList
       key={numCols}
-      data={pins}
+      data={gridData}
       numColumns={numCols}
       masonry={true}
       renderItem={renderItem}
@@ -113,7 +132,7 @@ export function MasonryGrid({
       scrollsToTop={scrollsToTop}
       ListHeaderComponent={ListHeaderComponent}
       ListEmptyComponent={
-        !isLoading && pins.length === 0 ? (
+        !isLoading && pins.length === 0 && skeletonCount === 0 ? (
           <View
             style={{
               flex: 1,
