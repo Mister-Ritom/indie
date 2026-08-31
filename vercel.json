@@ -20,7 +20,7 @@
   ],
   "rewrites": [
     {
-      "source": "/((?!\\.well-known).*)",
+      "source": "/((?!\\.well-known|app-ads\\.txt).*)",
       "destination": "/"
     }
   ]
