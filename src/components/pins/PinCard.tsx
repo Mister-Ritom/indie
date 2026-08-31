@@ -22,6 +22,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { Avatar } from '@/components/ui/Avatar';
 import { OptionsModal } from '@/components/ui/OptionsModal';
 import { ReportModal } from '@/components/ui/ReportModal';
+import { AuthWallModal } from '@/components/ui/AuthWallModal';
 import { SaveBoardPicker } from '@/components/pins/SaveBoardPicker';
 import { pickVariant, variantForWidth } from '@/utils/imageVariants';
 import { confirmAction } from '@/utils/alerts';
@@ -65,6 +66,8 @@ export function PinCard({ pin, columnWidth, onSavePress }: PinCardProps) {
     transform: [{ scale: heartScale.value }],
   }));
 
+  const [authWallConfig, setAuthWallConfig] = useState<{ visible: boolean, actionLabel: string }>({ visible: false, actionLabel: "" });
+
   // Hover elevation (web only)
   const cardElevation = useSharedValue(0);
   const cardStyle = useAnimatedStyle(() => ({
@@ -73,7 +76,7 @@ export function PinCard({ pin, columnWidth, onSavePress }: PinCardProps) {
 
   const handleLike = useCallback(async () => {
     if (!user) {
-      router.push('/(auth)/login');
+      setAuthWallConfig({ visible: true, actionLabel: "like pins" });
       return;
     }
     heartScale.value = withSpring(1.4, {}, () => {
@@ -109,7 +112,11 @@ export function PinCard({ pin, columnWidth, onSavePress }: PinCardProps) {
   }, []);
 
   const handleBlockUser = useCallback(() => {
-    if (!user) return;
+    if (!user) {
+      setShowOptions(false);
+      setAuthWallConfig({ visible: true, actionLabel: "block users" });
+      return;
+    }
     confirmAction(
       'Block User',
       `Are you sure you want to block @${pin.profile?.username}? You won't see their pins anymore.`,
@@ -369,6 +376,13 @@ export function PinCard({ pin, columnWidth, onSavePress }: PinCardProps) {
         visible={showSavePicker}
         pin={pin}
         onClose={() => setShowSavePicker(false)}
+      />
+
+      {/* Auth Wall */}
+      <AuthWallModal
+        visible={authWallConfig.visible}
+        onClose={() => setAuthWallConfig(prev => ({ ...prev, visible: false }))}
+        actionLabel={authWallConfig.actionLabel}
       />
     </>
   );

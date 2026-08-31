@@ -9,16 +9,24 @@ export function useDiscoveryCarousel() {
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchCarousel = useCallback(async () => {
-    if (!user) return;
-    setIsLoading(true);
-    
     try {
-      const { data: carouselIds, error: rpcError } = await supabase.rpc('get_discovery_carousel_pins', {
-        viewer_id: user.id,
-        page_limit: 6,
-      });
-      
-      if (rpcError) throw rpcError;
+      let carouselIds: { id: string }[] = [];
+      if (user) {
+        const { data, error } = await supabase.rpc('get_discovery_carousel_pins', {
+          viewer_id: user.id,
+          page_limit: 6,
+        });
+        if (error) throw error;
+        carouselIds = data as { id: string }[];
+      } else {
+        const { data, error } = await supabase
+          .from('pins')
+          .select('id')
+          .order('created_at', { ascending: false })
+          .limit(6);
+        if (error) throw error;
+        carouselIds = data as { id: string }[];
+      }
       
       if (!carouselIds || carouselIds.length === 0) {
         setPins([]);
@@ -57,8 +65,8 @@ export function useDiscoveryCarousel() {
           likes_count: likes?.length ?? 0,
           saves_count: saves?.length ?? 0,
           comments_count: comments?.length ?? 0,
-          is_liked: likes?.some((l) => l.user_id === user.id) ?? false,
-          is_saved: saves?.some((s) => s.user_id === user.id) ?? false,
+          is_liked: user ? (likes?.some((l) => l.user_id === user.id) ?? false) : false,
+          is_saved: user ? (saves?.some((s) => s.user_id === user.id) ?? false) : false,
         } as FeedPin;
       });
       
@@ -83,16 +91,27 @@ export function useFeaturedBoards() {
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchBoards = useCallback(async () => {
-    if (!user) return;
     setIsLoading(true);
-    
     try {
-      const { data: boardIds, error: rpcError } = await supabase.rpc('get_featured_boards', {
-        viewer_id: user.id,
-        page_limit: 10,
-      });
-
-      if (rpcError) throw rpcError;
+      let boardIds: { id: string }[] = [];
+      
+      if (user) {
+        const { data, error } = await supabase.rpc('get_featured_boards', {
+          viewer_id: user.id,
+          page_limit: 10,
+        });
+        if (error) throw error;
+        boardIds = data as { id: string }[];
+      } else {
+        const { data, error } = await supabase
+          .from('boards')
+          .select('id')
+          .eq('is_private', false)
+          .order('created_at', { ascending: false })
+          .limit(10);
+        if (error) throw error;
+        boardIds = data as { id: string }[];
+      }
 
       if (!boardIds || boardIds.length === 0) {
         setBoards([]);
@@ -157,16 +176,26 @@ export function useIdeasForYou() {
 
   const fetchIdeas = useCallback(
     async (offset: number, replace: boolean) => {
-      if (!user) return;
-      
       try {
-        const { data: ideaIds, error: rpcError } = await supabase.rpc('get_discovery_ideas_pins', {
-          viewer_id: user.id,
-          page_limit: PAGE_SIZE,
-          page_offset: offset,
-        });
-
-        if (rpcError) throw rpcError;
+        let ideaIds: { id: string }[] = [];
+        
+        if (user) {
+          const { data, error } = await supabase.rpc('get_discovery_ideas_pins', {
+            viewer_id: user.id,
+            page_limit: PAGE_SIZE,
+            page_offset: offset,
+          });
+          if (error) throw error;
+          ideaIds = data as { id: string }[];
+        } else {
+          const { data, error } = await supabase
+            .from('pins')
+            .select('id')
+            .order('created_at', { ascending: false })
+            .range(offset, offset + PAGE_SIZE - 1);
+          if (error) throw error;
+          ideaIds = data as { id: string }[];
+        }
 
         if (!ideaIds || ideaIds.length === 0) {
           setHasMore(false);
@@ -204,8 +233,8 @@ export function useIdeasForYou() {
             likes_count: likes?.length ?? 0,
             saves_count: saves?.length ?? 0,
             comments_count: comments?.length ?? 0,
-            is_liked: likes?.some((l) => l.user_id === user.id) ?? false,
-            is_saved: saves?.some((s) => s.user_id === user.id) ?? false,
+            is_liked: user ? (likes?.some((l) => l.user_id === user.id) ?? false) : false,
+            is_saved: user ? (saves?.some((s) => s.user_id === user.id) ?? false) : false,
           } as FeedPin;
         });
 

@@ -17,14 +17,28 @@ export function useFeed() {
 
   const fetchFeed = useCallback(
     async (offset: number, replace: boolean) => {
-      if (!user) return;
       try {
-        const { data: feedIds, error: rpcError } = await supabase.rpc('get_feed_pins', {
-          viewer_id: user.id,
-          page_limit: PAGE_SIZE,
-          page_offset: offset,
-        });
-        if (rpcError) throw rpcError;
+        let feedIds: { id: string }[] = [];
+
+        if (user) {
+          // Authenticated feed based on interests
+          const { data, error: rpcError } = await supabase.rpc('get_feed_pins', {
+            viewer_id: user.id,
+            page_limit: PAGE_SIZE,
+            page_offset: offset,
+          });
+          if (rpcError) throw rpcError;
+          feedIds = data as { id: string }[];
+        } else {
+          // Unauthenticated fallback: recent pins
+          const { data, error: recentError } = await supabase
+            .from('pins')
+            .select('id')
+            .order('created_at', { ascending: false })
+            .range(offset, offset + PAGE_SIZE - 1);
+          if (recentError) throw recentError;
+          feedIds = data as { id: string }[];
+        }
 
         if (!feedIds || feedIds.length === 0) {
           setHasMore(false);
@@ -63,8 +77,8 @@ export function useFeed() {
             likes_count: likes?.length ?? 0,
             saves_count: saves?.length ?? 0,
             comments_count: comments?.length ?? 0,
-            is_liked: likes?.some((l) => l.user_id === user.id) ?? false,
-            is_saved: saves?.some((s) => s.user_id === user.id) ?? false,
+            is_liked: user ? (likes?.some((l) => l.user_id === user.id) ?? false) : false,
+            is_saved: user ? (saves?.some((s) => s.user_id === user.id) ?? false) : false,
           } as FeedPin;
         });
 

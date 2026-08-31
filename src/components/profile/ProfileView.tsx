@@ -29,6 +29,8 @@ import { useAuthStore } from "@/stores/authStore";
 import { useUploadStore } from "@/stores/uploadStore";
 import type { ProfileWithStats, FeedPin, Board } from "@/types/database";
 
+import { AuthWallModal } from "@/components/ui/AuthWallModal";
+
 interface ProfileViewProps {
   userId: string;
   isCurrentUser: boolean;
@@ -65,6 +67,7 @@ export function ProfileView({ userId, isCurrentUser }: ProfileViewProps) {
   const [showReport, setShowReport] = useState(false);
   const [isReported, setIsReported] = useState(false);
   const [hideReportOverlay, setHideReportOverlay] = useState(false);
+  const [authWallConfig, setAuthWallConfig] = useState<{ visible: boolean, actionLabel: string }>({ visible: false, actionLabel: "" });
 
   const fetchProfile = useCallback(
     async (background = false) => {
@@ -256,7 +259,7 @@ export function ProfileView({ userId, isCurrentUser }: ProfileViewProps) {
   const handleFollow = async () => {
     if (!profile) return;
     if (!user) {
-      alert("Please log in to follow users.");
+      setAuthWallConfig({ visible: true, actionLabel: "follow users" });
       return;
     }
     const wasFollowing = profile.is_following;
@@ -295,7 +298,11 @@ export function ProfileView({ userId, isCurrentUser }: ProfileViewProps) {
   };
 
   const handleBlock = useCallback(() => {
-    if (!user || !profile) return;
+    if (!profile) return;
+    if (!user) {
+      setAuthWallConfig({ visible: true, actionLabel: "block users" });
+      return;
+    }
 
     if (isBlocked) {
       confirmAction(
@@ -949,6 +956,12 @@ export function ProfileView({ userId, isCurrentUser }: ProfileViewProps) {
           </View>
         </View>
       )}
+
+      <AuthWallModal
+        visible={authWallConfig.visible}
+        onClose={() => setAuthWallConfig(prev => ({ ...prev, visible: false }))}
+        actionLabel={authWallConfig.actionLabel}
+      />
     </>
   );
 }

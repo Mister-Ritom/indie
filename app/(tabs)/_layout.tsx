@@ -4,13 +4,22 @@ import { NativeTabs } from "expo-router/unstable-native-tabs";
 import { useNotifications } from "@/hooks/useNotifications";
 import * as Haptics from "expo-haptics";
 import { CreateMenuModal } from "@/components/CreateMenuModal";
+import { useAuthStore } from "@/stores/authStore";
+import { router } from "expo-router";
+import { AuthWallModal } from "@/components/ui/AuthWallModal";
 
 export default function TabLayout() {
   const isNavigating = useRef(false);
   const [isCreateModalVisible, setCreateModalVisible] = useState(false);
+  const [showAuthWall, setShowAuthWall] = useState(false);
+  const { user } = useAuthStore();
 
   const handleCreatePress = () => {
     if (isNavigating.current) return;
+    if (!user) {
+      setShowAuthWall(true);
+      return;
+    }
     isNavigating.current = true;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setCreateModalVisible(true);
@@ -63,6 +72,12 @@ export default function TabLayout() {
       <CreateMenuModal
         visible={isCreateModalVisible}
         onClose={() => setCreateModalVisible(false)}
+      />
+
+      <AuthWallModal
+        visible={showAuthWall}
+        onClose={() => setShowAuthWall(false)}
+        actionLabel="create pins"
       />
     </View>
   );

@@ -15,6 +15,7 @@ import { MasonryGrid } from '@/components/pins/MasonryGrid';
 import { SaveBoardPicker } from '@/components/pins/SaveBoardPicker';
 import { OptionsModal } from '@/components/ui/OptionsModal';
 import { ReportModal } from '@/components/ui/ReportModal';
+import { AuthWallModal } from '@/components/ui/AuthWallModal';
 import { confirmAction } from '@/utils/alerts';
 import { supabase } from '@/lib/supabase/client';
 import { useAuthStore } from '@/stores/authStore';
@@ -42,6 +43,8 @@ export default function PinDetailScreen() {
   const [isReported, setIsReported] = useState(false);
   const [hideReportOverlay, setHideReportOverlay] = useState(false);
   const hasViewedRef = useRef(false);
+
+  const [authWallConfig, setAuthWallConfig] = useState<{ visible: boolean, actionLabel: string }>({ visible: false, actionLabel: "" });
 
   useEffect(() => {
     let isMounted = true;
@@ -125,7 +128,11 @@ export default function PinDetailScreen() {
   }, [id, user?.id]);
 
   const handleLike = async () => {
-    if (!user || !pin) return router.push('/(auth)/login');
+    if (!pin) return;
+    if (!user) {
+      setAuthWallConfig({ visible: true, actionLabel: "like pins" });
+      return;
+    }
     const wasLiked = isLiked;
     setIsLiked(!wasLiked);
     setLikeCount(c => c + (wasLiked ? -1 : 1));
@@ -139,7 +146,7 @@ export default function PinDetailScreen() {
   const handleFollow = async () => {
     if (!pin) return;
     if (!user) {
-      alert("Please log in to follow users.");
+      setAuthWallConfig({ visible: true, actionLabel: "follow users" });
       return;
     }
     const wasFollowing = isFollowing;
@@ -334,26 +341,37 @@ export default function PinDetailScreen() {
                   Comments ({pin.comments_count})
                 </Text>
 
-                <View style={{ flexDirection: 'row', gap: spacing.md, marginBottom: spacing.xl }}>
-                  <Avatar uri={user?.user_metadata?.avatar_url} size="md" />
-                  <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: colors.inputBg, borderRadius: radius.pill, paddingHorizontal: spacing.md }}>
-                    <TextInput
-                      value={commentText}
-                      onChangeText={setCommentText}
-                      placeholder="Add a comment"
-                      placeholderTextColor={colors.placeholder}
-                      style={{ flex: 1, paddingVertical: 12, fontFamily: typography.families.body, fontSize: typography.scale.body, color: colors.text, outlineStyle: 'none' } as any}
-                      onSubmitEditing={handlePostComment}
-                    />
-                    {isPostingComment ? (
-                      <ActivityIndicator size="small" color={colors.primary} style={{ marginLeft: spacing.sm }} />
-                    ) : commentText.length > 0 ? (
-                      <TouchableOpacity onPress={handlePostComment} style={{ paddingLeft: spacing.sm }}>
-                        <Text style={{ fontFamily: typography.families.bodyMedium, color: colors.primary }}>Post</Text>
-                      </TouchableOpacity>
-                    ) : null}
+                {user ? (
+                  <View style={{ flexDirection: 'row', gap: spacing.md, marginBottom: spacing.xl }}>
+                    <Avatar uri={user?.user_metadata?.avatar_url} size="md" />
+                    <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: colors.inputBg, borderRadius: radius.pill, paddingHorizontal: spacing.md }}>
+                      <TextInput
+                        value={commentText}
+                        onChangeText={setCommentText}
+                        placeholder="Add a comment"
+                        placeholderTextColor={colors.placeholder}
+                        style={{ flex: 1, paddingVertical: 12, fontFamily: typography.families.body, fontSize: typography.scale.body, color: colors.text, outlineStyle: 'none' } as any}
+                        onSubmitEditing={handlePostComment}
+                      />
+                      {isPostingComment ? (
+                        <ActivityIndicator size="small" color={colors.primary} style={{ marginLeft: spacing.sm }} />
+                      ) : commentText.length > 0 ? (
+                        <TouchableOpacity onPress={handlePostComment} style={{ paddingLeft: spacing.sm }}>
+                          <Text style={{ fontFamily: typography.families.bodyMedium, color: colors.primary }}>Post</Text>
+                        </TouchableOpacity>
+                      ) : null}
+                    </View>
                   </View>
-                </View>
+                ) : (
+                  <TouchableOpacity 
+                    onPress={() => setAuthWallConfig({ visible: true, actionLabel: "comment" })}
+                    style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.inputBg, borderRadius: radius.pill, padding: spacing.md, marginBottom: spacing.xl }}
+                  >
+                    <Text style={{ fontFamily: typography.families.body, fontSize: typography.scale.body, color: colors.textSecondary, flex: 1 }}>
+                      Log in to add a comment...
+                    </Text>
+                  </TouchableOpacity>
+                )}
 
                 {pin.comments.map(comment => (
                   <View key={comment.id} style={{ flexDirection: 'row', gap: spacing.md, marginBottom: spacing.md }}>
@@ -407,7 +425,11 @@ export default function PinDetailScreen() {
             label: 'Block User',
             icon: <Ban size={20} color="#DC2626" />,
             onPress: () => {
-              if (!user) return;
+              if (!user) {
+                setShowOptions(false);
+                setAuthWallConfig({ visible: true, actionLabel: "block users" });
+                return;
+              }
               confirmAction(
                 'Block User',
                 `Are you sure you want to block @${pin.profile?.username}? You won't see their pins anymore.`,
@@ -503,6 +525,12 @@ export default function PinDetailScreen() {
           </View>
         </View>
       )}
+
+      <AuthWallModal
+        visible={authWallConfig.visible}
+        onClose={() => setAuthWallConfig(prev => ({ ...prev, visible: false }))}
+        actionLabel={authWallConfig.actionLabel}
+      />
     </SafeAreaView>
   );
 }

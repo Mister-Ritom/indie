@@ -11,6 +11,7 @@ import { timeAgo } from '@/utils/formatters';
 import type { Notification } from '@/types/database';
 import { supabase } from '@/lib/supabase/client';
 import { useAuthStore } from '@/stores/authStore';
+import { Button } from '@/components/ui/Button';
 
 export default function NotificationsScreen() {
   const { colors, spacing, typography, radius } = useTheme();
@@ -41,6 +42,17 @@ export default function NotificationsScreen() {
       markAllRead();
     }
   }, [isLoading, notifications, user, refresh]);
+
+  if (!user) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+        <Text style={{ fontSize: 20, fontWeight: 'bold', color: colors.text, marginBottom: 8 }}>Notifications</Text>
+        <Text style={{ fontSize: 16, color: colors.textSecondary, textAlign: 'center', marginBottom: 24 }}>Log in to see your notifications, including likes, comments, and new followers.</Text>
+        <Button label="Log in" onPress={() => router.push('/(auth)/login')} style={{ width: '100%', marginBottom: 12 }} />
+        <Button label="Sign up" variant="secondary" onPress={() => router.push('/(auth)/signup')} style={{ width: '100%' }} />
+      </SafeAreaView>
+    );
+  }
 
   const handlePress = (notif: Notification) => {
     if (!notif.read) {

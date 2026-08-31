@@ -422,6 +422,28 @@ export default function SignupScreen() {
                 </Text>
               </TouchableOpacity>
             </View>
+
+            {/* Continue as Guest */}
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "center",
+                marginTop: spacing.lg,
+              }}
+            >
+              <TouchableOpacity onPress={() => router.replace("/(tabs)")}>
+                <Text
+                  style={{
+                    fontFamily: typography.families.bodyMedium,
+                    fontSize: typography.scale.body,
+                    color: colors.textSecondary,
+                  }}
+                >
+                  Continue as guest
+                </Text>
+              </TouchableOpacity>
+            </View>
+
             {/* Legal */}
             <View
               style={{

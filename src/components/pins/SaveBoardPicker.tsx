@@ -22,12 +22,14 @@ interface SaveBoardPickerProps {
   onSaved?: () => void;
 }
 
-export function SaveBoardPicker({ visible, pin, onClose, onSaved }: SaveBoardPickerProps) {
-  const { colors, spacing, radius, typography } = useTheme();
-  const { user } = useAuthStore();
-  const [boards, setBoards] = useState<Board[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [saving, setSaving] = useState<string | null>(null);
+  import { AuthWallModal } from '@/components/ui/AuthWallModal';
+
+  export function SaveBoardPicker({ visible, pin, onClose, onSaved }: SaveBoardPickerProps) {
+    const { colors, spacing, radius, typography } = useTheme();
+    const { user } = useAuthStore();
+    const [boards, setBoards] = useState<Board[]>([]);
+    const [isLoading, setIsLoading] = useState(false);
+    const [saving, setSaving] = useState<string | null>(null);
 
   useEffect(() => {
     if (!visible || !user) return;
@@ -42,6 +44,16 @@ export function SaveBoardPicker({ visible, pin, onClose, onSaved }: SaveBoardPic
         setIsLoading(false);
       });
   }, [visible, user]);
+
+  if (visible && !user) {
+    return (
+      <AuthWallModal 
+        visible={visible} 
+        onClose={onClose} 
+        actionLabel="save pins" 
+      />
+    );
+  }
 
   const handleSave = async (boardId: string | null) => {
     if (!user || !pin) return;

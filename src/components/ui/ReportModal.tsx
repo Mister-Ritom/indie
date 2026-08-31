@@ -32,6 +32,8 @@ interface ReportModalProps {
   onReported?: () => void;
 }
 
+import { AuthWallModal } from '@/components/ui/AuthWallModal';
+
 export function ReportModal({ visible, onClose, type, targetId, onReported }: ReportModalProps) {
   const { colors, spacing, typography, radius } = useTheme();
   const { user } = useAuthStore();
@@ -40,6 +42,16 @@ export function ReportModal({ visible, onClose, type, targetId, onReported }: Re
   const [details, setDetails] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+
+  if (visible && !user) {
+    return (
+      <AuthWallModal 
+        visible={visible} 
+        onClose={onClose} 
+        actionLabel="report content" 
+      />
+    );
+  }
 
   const handleClose = () => {
     setSelectedReason(null);
