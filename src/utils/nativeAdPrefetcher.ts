@@ -8,12 +8,18 @@ try {
   const m = require('react-native-google-mobile-ads');
   NativeAdClass = m.NativeAd;
   TestIds = m.TestIds;
-} catch {
+} catch (e) {
   // Web / Expo Go
+  if (__DEV__) {
+    console.log('[AdMob Module Not Found (Web/Expo Go)]');
+  }
 }
 
 async function requestAd(): Promise<any> {
-  if (!NativeAdClass) return null;
+  if (!NativeAdClass) {
+    if (__DEV__) console.log('[AdMob requestAd]: NativeAdClass is null');
+    return null;
+  }
 
   if (__DEV__ && TestIds) {
     try {
@@ -21,7 +27,10 @@ async function requestAd(): Promise<any> {
       return await NativeAdClass.createForAdRequest(TestIds.NATIVE_VIDEO, {
         startVideoMuted: true,
       });
-    } catch {
+    } catch (videoErr) {
+      if (__DEV__) {
+        console.log('[AdMob NATIVE_VIDEO unavailable, falling back to NATIVE]:', videoErr);
+      }
       // If video test ad has no fill or times out, fall back to standard test ad
       return await NativeAdClass.createForAdRequest(TestIds.NATIVE);
     }

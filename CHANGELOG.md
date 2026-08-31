@@ -5,6 +5,30 @@ All notable changes to Indie will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.5] - 2026-08-31
+
+### Added
+- **Google AdMob Native Ads Integration**:
+  - Configured `react-native-google-mobile-ads` for iOS and Android with platform-specific App IDs and Native Ad Unit IDs.
+  - Added self-contained `NativeAdCard` component styled after `PinCard` with themed typography, "Sponsored" badge, advertiser/store metadata, and custom call-to-action button.
+  - Full support for both static image and video native creatives with dynamic aspect-ratio scaling and AdMob policy compliance (`minHeight: 120` for video assets).
+  - Background ad prefetch manager (`nativeAdPrefetcher`) for instantaneous ad rendering without skeleton lag.
+  - Natural randomized ad distribution in Home Feed (first ad between 5th and 10th post, subsequent ads spaced 7–16 posts apart).
+
+### Improved
+- **Ad Lifecycle & Resiliency**:
+  - Metadata fallback hierarchy: `advertiser` -> `store` -> `"Promoted"`.
+  - Development fallback: automatically falls back from `TestIds.NATIVE_VIDEO` to `TestIds.NATIVE` when video test inventory is unavailable.
+  - Cross-platform safety: conditional `require()` ensures web and Expo Go environments degrade gracefully without crashing.
+  - Strictly contained asset boundaries within `NativeAdView` for 100% AdMob validator compliance.
+
+### Fixed
+- Resolved iOS `GADInvalidInitializationException` startup crash by configuring `GADApplicationIdentifier` in `Info.plist` and `app.json`.
+- Added `com.google.android.gms.ads.APPLICATION_ID` to Android manifest.
+- Resolved layout shift / masonry card jumping on ad load failures.
+
+---
+
 ## [1.1.4] - 2026-08-31
 
 ### Added

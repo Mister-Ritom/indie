@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, memo } from "react";
-import { View, Text, Image, Platform } from "react-native";
+import { View, Text, Image } from "react-native";
 import { useTheme } from "@/hooks/useTheme";
 import { nativeAdPrefetcher } from "@/utils/nativeAdPrefetcher";
 import { SkeletonPinCard } from "./SkeletonPinCard";
@@ -93,17 +93,11 @@ function NativeAdCardInner({ columnWidth }: NativeAdCardProps) {
     return null;
   }
 
-  // While loading, render a skeleton card with an assumed height so the
-  // masonry grid does not suffer a sudden 0 -> height layout shift / flash
+  // While loading, render skeleton card with assumed height
   if (!nativeAd) {
     return <SkeletonPinCard columnWidth={columnWidth} index={1} />;
   }
 
-  // Dynamically adopt whatever aspect ratio the media creative has:
-  // - 9:16 (0.56) for vertical/Reels/TikTok-style video or portrait image
-  // - 4:5 (0.80) / 3:4 (0.75) for standard vertical posts
-  // - 1:1 (1.00) for square photo/video
-  // - 16:9 (1.78) for landscape/widescreen video
   const rawAspectRatio: number =
     nativeAd.mediaContent?.aspectRatio && nativeAd.mediaContent.aspectRatio > 0
       ? nativeAd.mediaContent.aspectRatio

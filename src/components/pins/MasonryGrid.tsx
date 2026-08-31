@@ -23,11 +23,6 @@ type SkeletonItem = { _skeleton: true; _skeletonIndex: number; id: string };
 type AdItem = { _ad: true; id: string };
 type GridItem = FeedPin | SkeletonItem | AdItem;
 
-/** Minimum number of posts before an ad can appear */
-const AD_MIN_OFFSET = 5;
-/** Maximum post index at which an ad can appear */
-const AD_MAX_OFFSET = 50;
-
 interface MasonryGridProps {
   pins: FeedPin[];
   isLoading?: boolean;
@@ -75,15 +70,13 @@ export function MasonryGrid({
 
   const colW = columnWidth(contentWidth, numCols, grid.gap, grid.contentPadding);
 
-  // Generate randomized ad slots across the feed.
-  // The schedule is tied to the first pin's ID so it stays fixed during infinite scroll,
-  // but recalculates with a new random pattern on refresh or new feed loads.
+  // Generate randomized ad slots across the feed
   const firstPinId = pins[0]?.id ?? null;
   const adPositions = useMemo(() => {
     const positions = new Set<number>();
     if (!firstPinId) return positions;
 
-    // First ad randomly placed between 5th and 10th post (indices 4..9)
+    // First ad placed randomly between 5th and 10th post (indices 4..9)
     let pos = Math.floor(Math.random() * 6) + 4;
     while (pos < 500) {
       positions.add(pos);
@@ -94,12 +87,12 @@ export function MasonryGrid({
     return positions;
   }, [firstPinId]);
 
-  // Pre-fetch ads into the memory pool as soon as the feed loads
+  // Pre-fetch the first ad into memory in the background as soon as feed loads
   useEffect(() => {
     if (pins.length > 0) {
       nativeAdPrefetcher.prefetch();
     }
-  }, [firstPinId, pins.length]);
+  }, [firstPinId]);
 
   // Build data: skeleton sentinels first, then real pins with ad sentinels
   const skeletonItems: SkeletonItem[] = Array.from({ length: skeletonCount }, (_, i) => ({
@@ -111,9 +104,8 @@ export function MasonryGrid({
   const gridData: GridItem[] = [...skeletonItems];
   pins.forEach((pin, i) => {
     gridData.push(pin);
-    // Insert ad sentinel at randomized intervals throughout the feed
     if (adPositions.has(i) && pins.length >= 5) {
-      gridData.push({ _ad: true, id: `__ad_${i}` } satisfies AdItem);
+      gridData.push({ _ad: true, id: `__ad_${i}` });
     }
   });
 
