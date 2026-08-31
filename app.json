@@ -72,6 +72,13 @@
       ],
       "expo-image",
       "expo-tracking-transparency",
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-2032620092700178~2991632986",
+          "iosAppId": "ca-app-pub-2032620092700178~7936943105"
+        }
+      ],
       "expo-apple-authentication",
       [
         "expo-build-properties",
@@ -100,5 +107,9 @@
     "updates": {
       "url": "https://u.expo.dev/61931d90-c63d-46a3-8b9e-13e2283aa2b2"
     }
+  },
+  "react-native-google-mobile-ads": {
+    "android_app_id": "ca-app-pub-2032620092700178~2991632986",
+    "ios_app_id": "ca-app-pub-2032620092700178~7936943105"
   }
 }

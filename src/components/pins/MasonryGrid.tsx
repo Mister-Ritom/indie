@@ -1,4 +1,4 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useMemo } from "react";
 import {
   View,
   useWindowDimensions,
@@ -9,6 +9,7 @@ import {
 import { FlashList } from "@shopify/flash-list";
 import { PinCard } from "./PinCard";
 import { SkeletonPinCard } from "./SkeletonPinCard";
+import { NativeAdCard } from "./NativeAdCard";
 import { useTheme } from "@/hooks/useTheme";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 import { columnWidth } from "@/utils/imageVariants";
@@ -17,7 +18,14 @@ import { useSidebarStore } from "@/stores/sidebarStore";
 
 /** Sentinel item type for skeleton placeholders */
 type SkeletonItem = { _skeleton: true; _skeletonIndex: number; id: string };
-type GridItem = FeedPin | SkeletonItem;
+/** Sentinel item type for native ad slots */
+type AdItem = { _ad: true; id: string };
+type GridItem = FeedPin | SkeletonItem | AdItem;
+
+/** Minimum number of posts before an ad can appear */
+const AD_MIN_OFFSET = 5;
+/** Maximum post index at which an ad can appear */
+const AD_MAX_OFFSET = 50;
 
 interface MasonryGridProps {
   pins: FeedPin[];
@@ -66,18 +74,48 @@ export function MasonryGrid({
 
   const colW = columnWidth(contentWidth, numCols, grid.gap, grid.contentPadding);
 
-  // Build data: skeleton sentinels first, then real pins
+  // Generate randomized ad slots across the feed.
+  // The schedule is tied to the first pin's ID so it stays fixed during infinite scroll,
+  // but recalculates with a new random pattern on refresh or new feed loads.
+  const firstPinId = pins[0]?.id ?? null;
+  const adPositions = useMemo(() => {
+    const positions = new Set<number>();
+    if (!firstPinId) return positions;
+
+    // First ad randomly placed between 5th and 10th post (indices 4..9)
+    let pos = Math.floor(Math.random() * 6) + 4;
+    while (pos < 500) {
+      positions.add(pos);
+      // Subsequent ads spaced randomly between 7 and 16 posts apart
+      const gap = Math.floor(Math.random() * 10) + 7;
+      pos += gap;
+    }
+    return positions;
+  }, [firstPinId]);
+
+  // Build data: skeleton sentinels first, then real pins with ad sentinels
   const skeletonItems: SkeletonItem[] = Array.from({ length: skeletonCount }, (_, i) => ({
     _skeleton: true as const,
     _skeletonIndex: i,
     id: `__skeleton_${i}`,
   }));
-  const gridData: GridItem[] = [...skeletonItems, ...pins];
+
+  const gridData: GridItem[] = [...skeletonItems];
+  pins.forEach((pin, i) => {
+    gridData.push(pin);
+    // Insert ad sentinel at randomized intervals throughout the feed
+    if (adPositions.has(i) && pins.length >= 5) {
+      gridData.push({ _ad: true, id: `__ad_${i}` } satisfies AdItem);
+    }
+  });
 
   const renderItem = useCallback(
     ({ item }: { item: GridItem }) => {
       if ('_skeleton' in item && item._skeleton) {
         return <SkeletonPinCard columnWidth={colW} index={item._skeletonIndex} />;
+      }
+      if ('_ad' in item && item._ad) {
+        return <NativeAdCard columnWidth={colW} />;
       }
       return <PinCard pin={item as FeedPin} columnWidth={colW} onSavePress={onSavePin} />;
     },
