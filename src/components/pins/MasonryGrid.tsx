@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from "react";
+import React, { useCallback, useEffect, useMemo } from "react";
 import {
   View,
   useWindowDimensions,
@@ -10,6 +10,7 @@ import { FlashList } from "@shopify/flash-list";
 import { PinCard } from "./PinCard";
 import { SkeletonPinCard } from "./SkeletonPinCard";
 import { NativeAdCard } from "./NativeAdCard";
+import { nativeAdPrefetcher } from "@/utils/nativeAdPrefetcher";
 import { useTheme } from "@/hooks/useTheme";
 import { useBreakpoint } from "@/hooks/useBreakpoint";
 import { columnWidth } from "@/utils/imageVariants";
@@ -92,6 +93,13 @@ export function MasonryGrid({
     }
     return positions;
   }, [firstPinId]);
+
+  // Pre-fetch ads into the memory pool as soon as the feed loads
+  useEffect(() => {
+    if (pins.length > 0) {
+      nativeAdPrefetcher.prefetch();
+    }
+  }, [firstPinId, pins.length]);
 
   // Build data: skeleton sentinels first, then real pins with ad sentinels
   const skeletonItems: SkeletonItem[] = Array.from({ length: skeletonCount }, (_, i) => ({

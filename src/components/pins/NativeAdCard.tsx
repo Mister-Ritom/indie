@@ -1,13 +1,8 @@
-import React, { useEffect, useRef, useState, memo } from 'react';
-import {
-  View,
-  Text,
-  Image,
-  Platform,
-} from 'react-native';
-import { useTheme } from '@/hooks/useTheme';
-import { AD_UNITS } from '@/utils/constants';
-import { SkeletonPinCard } from './SkeletonPinCard';
+import React, { useEffect, useRef, useState, memo } from "react";
+import { View, Text, Image, Platform } from "react-native";
+import { useTheme } from "@/hooks/useTheme";
+import { nativeAdPrefetcher } from "@/utils/nativeAdPrefetcher";
+import { SkeletonPinCard } from "./SkeletonPinCard";
 
 // ---------------------------------------------------------------------------
 // Conditional require — keeps the module from crashing on web / Expo Go where
@@ -22,7 +17,7 @@ let NativeAdClass: any = null;
 let TestIds: any = null;
 
 try {
-  const m = require('react-native-google-mobile-ads');
+  const m = require("react-native-google-mobile-ads");
   NativeAdView = m.NativeAdView;
   NativeMediaView = m.NativeMediaView;
   NativeAsset = m.NativeAsset;
@@ -31,18 +26,6 @@ try {
   TestIds = m.TestIds;
 } catch {
   // web or Expo Go — native module not available
-}
-
-// ---------------------------------------------------------------------------
-// Ad unit ID: test IDs in __DEV__, production IDs from constants in release
-// ---------------------------------------------------------------------------
-function getAdUnitId(): string {
-  if (__DEV__ && TestIds) {
-    return TestIds.NATIVE as string;
-  }
-  return Platform.OS === 'ios'
-    ? AD_UNITS.ios.homeNative
-    : AD_UNITS.android.homeNative;
 }
 
 // ---------------------------------------------------------------------------
@@ -75,14 +58,21 @@ function NativeAdCardInner({ columnWidth }: NativeAdCardProps) {
 
     const load = async () => {
       try {
-        const ad = await NativeAdClass.createForAdRequest(getAdUnitId());
+        const ad = await nativeAdPrefetcher.getAd();
         if (cancelled) {
-          ad.destroy();
+          ad?.destroy();
           return;
         }
-        adRef.current = ad;
-        setNativeAd(ad);
-      } catch {
+        if (ad) {
+          adRef.current = ad;
+          setNativeAd(ad);
+        } else {
+          setHasError(true);
+        }
+      } catch (err) {
+        if (__DEV__) {
+          console.warn("[NativeAdCard Error]:", err);
+        }
         if (!cancelled) setHasError(true);
       }
     };
@@ -109,13 +99,25 @@ function NativeAdCardInner({ columnWidth }: NativeAdCardProps) {
     return <SkeletonPinCard columnWidth={columnWidth} index={1} />;
   }
 
-  // Mirror PinCard height cap: clamp aspect ratio between 0.5 and 1.8
+  // Dynamically adopt whatever aspect ratio the media creative has:
+  // - 9:16 (0.56) for vertical/Reels/TikTok-style video or portrait image
+  // - 4:5 (0.80) / 3:4 (0.75) for standard vertical posts
+  // - 1:1 (1.00) for square photo/video
+  // - 16:9 (1.78) for landscape/widescreen video
   const rawAspectRatio: number =
     nativeAd.mediaContent?.aspectRatio && nativeAd.mediaContent.aspectRatio > 0
       ? nativeAd.mediaContent.aspectRatio
-      : 1.0;
-  const aspectRatio = Math.min(Math.max(rawAspectRatio, 0.5), 1.8);
-  const mediaHeight = Math.round(columnWidth / aspectRatio);
+      : nativeAd.mediaContent?.hasVideoContent
+        ? 16 / 9
+        : 0.75; // matches default pin aspect ratio (3:4)
+
+  // Clamp within safe bounds (0.5 to 2.0) to preserve clean masonry layout
+  const mediaAspectRatio = Math.min(Math.max(rawAspectRatio, 0.5), 2.0);
+  // Ensure height is at least 120 (AdMob video rule) and capped at 1.8x columnWidth (PinCard rule)
+  const mediaHeight = Math.min(
+    Math.max(Math.round(columnWidth / mediaAspectRatio), 120),
+    Math.round(columnWidth * 1.8),
+  );
 
   return (
     <NativeAdView
@@ -124,8 +126,8 @@ function NativeAdCardInner({ columnWidth }: NativeAdCardProps) {
         width: columnWidth,
         marginBottom: spacing.sm,
         borderRadius: radius.lg,
-        overflow: 'hidden',
-        backgroundColor: 'transparent',
+        overflow: "hidden",
+        backgroundColor: "transparent",
       }}
     >
       {/* ── Media region ────────────────────────────────────────────── */}
@@ -135,20 +137,18 @@ function NativeAdCardInner({ columnWidth }: NativeAdCardProps) {
           height: mediaHeight,
           backgroundColor: colors.skeleton,
           borderRadius: radius.lg,
-          overflow: 'hidden',
+          overflow: "hidden",
         }}
       >
-        <NativeAsset assetType={NativeAssetType.IMAGE}>
-          <NativeMediaView
-            resizeMode="cover"
-            style={{ width: columnWidth, height: mediaHeight }}
-          />
-        </NativeAsset>
+        <NativeMediaView
+          resizeMode="cover"
+          style={{ width: "100%", height: "100%", aspectRatio: undefined }}
+        />
 
         {/* Sponsored badge — always visible, clearly labels this as an ad */}
         <View
           style={{
-            position: 'absolute',
+            position: "absolute",
             top: spacing.sm,
             left: spacing.sm,
             backgroundColor: colors.primary,
@@ -162,7 +162,7 @@ function NativeAdCardInner({ columnWidth }: NativeAdCardProps) {
             style={{
               fontFamily: typography.families.bodyBold,
               fontSize: typography.scale.tiny,
-              color: '#fff',
+              color: "#fff",
               letterSpacing: 0.5,
             }}
           >
@@ -215,9 +215,9 @@ function NativeAdCardInner({ columnWidth }: NativeAdCardProps) {
         {/* Author row: icon + advertiser name + CTA */}
         <View
           style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
             marginTop: 2,
             gap: 6,
           }}
@@ -225,8 +225,8 @@ function NativeAdCardInner({ columnWidth }: NativeAdCardProps) {
           {/* Advertiser icon + name */}
           <View
             style={{
-              flexDirection: 'row',
-              alignItems: 'center',
+              flexDirection: "row",
+              alignItems: "center",
               gap: 6,
               flex: 1,
             }}
@@ -299,9 +299,9 @@ function NativeAdCardInner({ columnWidth }: NativeAdCardProps) {
                   paddingHorizontal: 12,
                   fontFamily: typography.families.bodyBold,
                   fontSize: typography.scale.caption,
-                  color: '#fff',
-                  overflow: 'hidden',
-                  textAlign: 'center',
+                  color: "#fff",
+                  overflow: "hidden",
+                  textAlign: "center",
                 }}
               >
                 {nativeAd.callToAction}
